@@ -22,7 +22,7 @@ export default function App() {
 
   if (!started) {
     return (
-      <main className="h-full flex flex-col items-center justify-center gap-6 bg-yellow-400 p-6 text-center">
+      <main className="relative h-full flex flex-col items-center justify-center gap-6 bg-yellow-400 p-6 text-center">
         <h1 className="text-5xl font-black border-4 border-black bg-white px-6 py-4 shadow-[6px_6px_0_#000] -rotate-2">
           Cartel GO
         </h1>
@@ -41,6 +41,7 @@ export default function App() {
         >
           Probar sin GPS (simulación)
         </button>
+        <p className="text-xs font-bold opacity-70">v{__APP_VERSION__} · {__BUILD_DATE__}</p>
       </main>
     )
   }

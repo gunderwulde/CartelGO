@@ -41,6 +41,17 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 - [x] Modo debug/simulación (mover el avatar con el dedo o teclado) para poder testear en escritorio sin caminar.
 - [~] Iconos PWA (placeholder amarillo; falta diseño real) (192/512, maskable) y splash.
 
+## Sprint 1.5 - Actualización de la app instalada
+
+- [x] `registerType: 'prompt'`: el usuario decide cuándo actualizar (no se pierde una sesión de calle por una recarga).
+- [x] Aviso "¡Nueva versión!" con botones Actualizar / Más tarde (`UpdatePrompt.tsx`).
+- [x] Comprobación de versión cada hora y al volver a abrir la app (`visibilitychange`).
+- [x] Versión y fecha de build visibles en la pantalla de inicio.
+- [ ] Al llegar a Sprint 3: guardar el progreso en IndexedDB antes de recargar para actualizar.
+- Nota: subir `version` en package.json en cada release. En iOS la PWA instalada solo comprueba al abrirse.
+
+---
+
 ## Sprint 2 - Mundo real (Overpass)
 
 - [ ] `osmService.ts`: consulta Overpass por hexágono H3 / radio 1.5 km con las etiquetas del GDD §3 (`industrial`, `pharmacy`, `park`, `bar`/`nightclub`, `police`, `laundry`/`car_wash`).
