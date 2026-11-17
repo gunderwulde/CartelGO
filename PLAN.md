@@ -12,16 +12,16 @@ Plan de trabajo derivado de [GDD.md](GDD.md) y [AGENTS.md](AGENTS.md). Marca `[x
 
 Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 
-- [ ] `git init`, rama `main`, añadir `origin` = repo de GitHub, primer commit con GDD/AGENTS/PLAN.
-- [ ] `.gitignore` (node_modules, dist, .env*, etc.) y `README.md` corto.
-- [ ] Scaffold Vite + React + TypeScript (`strict: true`, sin `any`).
-- [ ] Instalar dependencias del stack: `tailwindcss`, `lucide-react`, `zustand`, `maplibre-gl`, `h3-js`, `idb-keyval` (o `dexie`), `vite-plugin-pwa`.
-- [ ] **Configurar para GitHub Pages:**
+- [x] `git init`, rama `main`, añadir `origin` = repo de GitHub, primer commit con GDD/AGENTS/PLAN.
+- [x] `.gitignore` (node_modules, dist, .env*, etc.) y `README.md` corto.
+- [x] Scaffold Vite + React + TypeScript (`strict: true`, sin `any`).
+- [x] Instalar dependencias del stack: `tailwindcss`, `lucide-react`, `zustand`, `maplibre-gl`, `h3-js`, `idb-keyval` (o `dexie`), `vite-plugin-pwa`.
+- [x] **Configurar para GitHub Pages:**
   - `base: '/CartelGO/'` en `vite.config.ts`.
   - PWA manifest con `scope` y `start_url` = `/CartelGO/`.
   - Todas las rutas de assets relativas al `base` (nada de `/icon.png` absoluto).
   - Si se usa router: `HashRouter` (Pages no hace fallback SPA) o copiar `index.html` a `404.html`.
-- [ ] Workflow `.github/workflows/deploy.yml`: build + `actions/upload-pages-artifact` + `actions/deploy-pages` en cada push a `main`.
+- [x] Workflow `.github/workflows/deploy.yml`: build + `actions/upload-pages-artifact` + `actions/deploy-pages` en cada push a `main`.
 - [ ] En GitHub: *Settings → Pages → Source = GitHub Actions*.
 - [ ] Verificar que la URL pública carga, es HTTPS (necesario para Geolocation) y es instalable como PWA.
 
@@ -80,7 +80,7 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 - [x] Negocios tapadera (lavandería/autolavado): blanqueo Dinero Sucio → Dinero Limpio.
 - [x] Mejoras de HQ, almacén y mochila con Dinero Limpio; sistema de Reputación (XP) y desbloqueo de Tiers.
 - [x] Tests unitarios del `idleEngine` (21 tests en total con precios y Heat).
-- [ ] **Decisiones de balance a revisar en el Sprint 5:** costes de mejoras, ritmo de camellos (1 ud/30 s, cobran 80 %), blanqueo (5 $/10 s por negocio, se queda 80 %), tope offline de 8 h, 250 $ limpios iniciales.
+- [ ] **Decisiones de balance a revisar en el Sprint 5:** costes de mejoras, ritmo de camellos (1 ud/30 s, cobran 80 %), blanqueo (5 $/10 s por negocio, se queda 80 %), tope offline de 8 h, 350 $ limpios iniciales (revisado en el Sprint 5, pendiente de pruebas reales).
 
 ## Sprint 5 - Pulido
 
