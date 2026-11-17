@@ -31,15 +31,15 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 
 ## Sprint 1 - Core técnico
 
-- [ ] Estructura de carpetas según AGENTS.md (`components/ map/ services/ store/ data/ types/`).
-- [ ] Tailwind con tema cartoon (bordes negros gruesos, sombras duras, paleta saturada).
-- [ ] MapLibre GL con estilo cartoon custom.
+- [x] Estructura de carpetas según AGENTS.md (`components/ map/ services/ store/ data/ types/`).
+- [x] Tailwind con tema cartoon (bordes negros gruesos, sombras duras, paleta saturada).
+- [x] MapLibre GL con estilo cartoon custom (OpenFreeMap + recoloreado en runtime).
   - **Decisión pendiente:** fuente de teselas vectoriales gratuita y sin API key (p. ej. OpenFreeMap) frente a MapTiler/Stadia (requieren key, que quedaría expuesta en el cliente). Recomendado: OpenFreeMap + estilo propio.
-- [ ] `geoService.ts`: wrapper de `watchPosition`, Haversine, manejo de permisos denegados / sin GPS.
-- [ ] Avatar del jugador moviéndose en el mapa.
-- [ ] **Anti-cheat:** velocidad > 25 km/h → bloquear interacciones y mostrar aviso "Modo Conducción".
-- [ ] Modo debug/simulación (mover el avatar con el dedo o teclado) para poder testear en escritorio sin caminar.
-- [ ] Iconos PWA (192/512, maskable) y splash.
+- [x] `geoService.ts`: wrapper de `watchPosition`, Haversine, manejo de permisos denegados / sin GPS.
+- [x] Avatar del jugador moviéndose en el mapa.
+- [x] **Anti-cheat:** velocidad > 25 km/h → bloquear interacciones y mostrar aviso "Modo Conducción".
+- [x] Modo debug/simulación (mover el avatar con el dedo o teclado) para poder testear en escritorio sin caminar.
+- [~] Iconos PWA (placeholder amarillo; falta diseño real) (192/512, maskable) y splash.
 
 ## Sprint 2 - Mundo real (Overpass)
 
