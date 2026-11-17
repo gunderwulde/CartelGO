@@ -47,7 +47,7 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 - [x] Aviso "¡Nueva versión!" con botones Actualizar / Más tarde (`UpdatePrompt.tsx`).
 - [x] Comprobación de versión cada hora y al volver a abrir la app (`visibilitychange`).
 - [x] Versión y fecha de build visibles en la pantalla de inicio.
-- [ ] Al llegar a Sprint 3: guardar el progreso en IndexedDB antes de recargar para actualizar.
+- [x] El progreso se guarda en IndexedDB en cada cambio, así que recargar para actualizar no pierde nada (probado).
 - Nota: subir `version` en package.json en cada release. En iOS la PWA instalada solo comprueba al abrirse.
 
 ---
@@ -62,12 +62,14 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 
 ## Sprint 3 - Loop de calle
 
-- [ ] `data/`: catálogo de precursores, productos (Hierba Risona, Cristal Azul, Polvo Estelar → nombres ficticios, ver AGENTS §3), precios.
-- [ ] Stores Zustand: `playerStore`, `inventoryStore`, `mapStore`.
-- [ ] Inventario con capacidad de mochila.
-- [ ] Interacción a < 50 m: comprar precursores (industrial/farmacia, con límite diario) y vender (parque, bares con x2 de 20:00 a 04:00).
-- [ ] Medidor de Heat por cercanía a comisarías; al 100 % se pierde la mercancía.
-- [ ] Persistencia del progreso en IndexedDB (offline-first).
+- [x] `data/`: catálogo de precursores, productos (Hierba Risona, Cristal Azul, Polvo Estelar → nombres ficticios, ver AGENTS §3), precios. Sin laboratorio aún, el jugador empieza con 10 Hierba Risona para poder probar la venta.
+- [x] Stores Zustand: `playerStore`, `inventoryStore`, `mapStore`.
+- [x] Inventario con capacidad de mochila.
+- [x] Interacción a < 50 m: comprar precursores (industrial/farmacia, con límite diario) y vender (parque, bares con x2 de 20:00 a 04:00).
+- [x] Medidor de Heat por cercanía a comisarías; al 100 % se pierde la mercancía.
+- [x] Persistencia del progreso en IndexedDB (offline-first, `zustand/persist` + `idb-keyval`).
+- [x] Tests unitarios (vitest) de precios, compra/venta, límite diario de farmacia y Heat: `npm test`.
+- [ ] **Decisión pendiente:** en la redada solo se pierde la mercancía (GDD §3); el GDD §4 dice que también se pierde el Dinero Sucio. Ahora mismo solo se pierde la mercancía.
 
 ## Sprint 4 - Base e Idle
 

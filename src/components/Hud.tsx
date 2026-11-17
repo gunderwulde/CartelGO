@@ -33,7 +33,7 @@ export function TopBar({ status, speed, simulation }: TopProps) {
 
 export function DrivingWarning() {
   return (
-    <div className="absolute inset-x-3 top-16 cartoon-card bg-red-500! text-white p-3 flex items-center gap-3 z-10">
+    <div className="absolute inset-x-3 top-[6.25rem] cartoon-card bg-red-500! text-white p-3 flex items-center gap-3 z-10">
       <TriangleAlert size={32} className="shrink-0" />
       <div>
         <p className="font-black text-lg leading-tight">¡Modo Conducción!</p>
@@ -46,7 +46,7 @@ export function DrivingWarning() {
 export function GpsBlocker({ status, onRetry }: { status: GpsStatus; onRetry: () => void }) {
   if (status === 'active' || status === 'requesting' || status === 'idle') return null
   return (
-    <div className="absolute inset-x-3 top-16 cartoon-card p-3 z-10">
+    <div className="absolute inset-x-3 top-[6.25rem] cartoon-card p-3 z-10">
       <p className="font-black">{STATUS_TEXT[status]}</p>
       <p className="text-sm font-bold mb-2">Activa la ubicación del navegador o usa el modo simulación.</p>
       <button className="cartoon-btn px-3 py-1.5" onClick={onRetry}>
@@ -84,7 +84,7 @@ interface PoiStatusProps {
 export function PoiStatus({ status, count, onRetry }: PoiStatusProps) {
   if (status === 'idle' || status === 'ready') return null
   return (
-    <div className="absolute left-3 top-[4.25rem] cartoon-card px-3 py-1.5 text-xs font-black flex items-center gap-2">
+    <div className="absolute left-3 top-[6.25rem] cartoon-card px-3 py-1.5 text-xs font-black flex items-center gap-2">
       {status === 'loading' ? (
         <>Explorando el barrio… ({count})</>
       ) : (
@@ -99,16 +99,16 @@ export function PoiStatus({ status, count, onRetry }: PoiStatusProps) {
   )
 }
 
-export function NearbyPois({ pois }: { pois: Poi[] }) {
+export function NearbyPois({ pois, onSelect }: { pois: Poi[]; onSelect: (p: Poi) => void }) {
   if (pois.length === 0) return null
   return (
     <div className="absolute inset-x-3 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+5.5rem))] mx-auto max-w-sm cartoon-card p-2 flex flex-col gap-1">
       {pois.slice(0, 3).map((p) => (
-        <div key={p.id} className="flex items-center gap-2 text-sm font-black">
+        <button key={p.id} className="flex items-center gap-2 text-sm font-black text-left" onClick={() => onSelect(p)}>
           <span className="w-4 h-4 rounded-full border-2 border-black shrink-0" style={{ background: POI_KINDS[p.kind].color }} />
           <span className="truncate">{p.name ?? POI_KINDS[p.kind].label}</span>
           <span className="ml-auto text-xs font-bold opacity-70 shrink-0">{POI_KINDS[p.kind].label}</span>
-        </div>
+        </button>
       ))}
     </div>
   )

@@ -10,3 +10,12 @@ createRoot(document.getElementById('root')!).render(
     <UpdatePrompt />
   </StrictMode>,
 )
+
+// Solo desarrollo: acceso a los stores desde la consola del navegador
+if (import.meta.env.DEV) {
+  void Promise.all([import('./store/playerStore'), import('./store/mapStore'), import('./store/inventoryStore')]).then(
+    ([p, m, i]) => {
+      Object.assign(window, { __cartel: { player: p.usePlayerStore, map: m.useMapStore, inv: i.useInventoryStore } })
+    },
+  )
+}

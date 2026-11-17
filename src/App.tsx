@@ -4,8 +4,11 @@ import { usePlayerStore } from './store/playerStore'
 import { useMapStore } from './store/mapStore'
 import { useGps } from './services/useGps'
 import { usePois } from './services/usePois'
+import { useHeat } from './services/useHeat'
 import { useSimulation } from './services/useSimulation'
 import { haversine, INTERACTION_RADIUS_M } from './services/geoService'
+import { StatsBar, Toast } from './components/Stats'
+import TradeModal from './components/TradeModal'
 import { BottomButtons, DrivingWarning, GpsBlocker, NearbyPois, PoiStatus, TopBar } from './components/Hud'
 
 /** Herramienta de desarrollo: abrir con ?sim para mover el avatar sin GPS. */
@@ -16,6 +19,7 @@ export default function App() {
   const [follow, setFollow] = useState(true)
   const [retry, setRetry] = useState(0)
   const [poiRetry, setPoiRetry] = useState(0)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const status = usePlayerStore((s) => s.gpsStatus)
   const speed = usePlayerStore((s) => s.speed)
@@ -31,6 +35,7 @@ export default function App() {
 
   useGps(started, retry)
   usePois(started, poiRetry)
+  useHeat(started)
   useSimulation(started && simulation)
 
   const nearby = useMemo(() => {
@@ -41,6 +46,8 @@ export default function App() {
       .sort((a, b) => a.d - b.d)
       .map((x) => x.p)
   }, [position, pois])
+
+  const selected = nearby.find((p) => p.id === selectedId) ?? null
 
   if (!started) {
     return (
@@ -66,7 +73,10 @@ export default function App() {
       <PoiStatus status={poiStatus} count={Object.keys(pois).length} onRetry={() => setPoiRetry((n) => n + 1)} />
       {driving && <DrivingWarning />}
       {!simulation && <GpsBlocker status={status} onRetry={() => setRetry((n) => n + 1)} />}
-      {!driving && <NearbyPois pois={nearby} />}
+      <StatsBar />
+      {!selected && <NearbyPois pois={nearby} onSelect={(p) => setSelectedId(p.id)} />}
+      {selected && <TradeModal poi={selected} blocked={driving} onClose={() => setSelectedId(null)} />}
+      <Toast />
       <BottomButtons follow={follow} onToggleFollow={() => setFollow((f) => !f)} />
     </div>
   )
