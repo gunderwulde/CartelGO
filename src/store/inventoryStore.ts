@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { del, get, set } from 'idb-keyval'
 import type { ItemId } from '../data/items'
+import { START_CLEAN_CASH } from '../data/buildings'
 import { HEAT_AFTER_RAID, START_CAPACITY, START_DIRTY_CASH, START_INVENTORY } from '../data/balance'
 import { buy, sell, dayKey, type DailyLimits, type Inventory, type TradePoi, type TradeResult } from '../services/tradeEngine'
 
@@ -23,7 +24,8 @@ interface InventoryState {
   /** Mensaje efímero para el HUD (no se guarda) */
   notice: string | null
 
-  trade: (mode: 'buy' | 'sell', poi: TradePoi, item: ItemId, qty: number) => TradeResult
+  /** `sellMult`: bonus de pureza del laboratorio aplicado a las ventas */
+  trade: (mode: 'buy' | 'sell', poi: TradePoi, item: ItemId, qty: number, sellMult?: number) => TradeResult
   setHeat: (heat: number) => void
   /** Redada: se pierde la mercancía que llevas encima (GDD §3). */
   raid: () => void
@@ -35,15 +37,15 @@ export const useInventoryStore = create<InventoryState>()(
     (set, getState) => ({
       inventory: { ...START_INVENTORY },
       dirtyCash: START_DIRTY_CASH,
-      cleanCash: 0,
+      cleanCash: START_CLEAN_CASH,
       capacity: START_CAPACITY,
       limits: { day: dayKey(new Date()), bought: {} },
       heat: 0,
       notice: null,
 
-      trade: (mode, poi, item, qty) => {
+      trade: (mode, poi, item, qty, sellMult = 1) => {
         const { inventory, dirtyCash, capacity, limits } = getState()
-        const state = { inventory, dirtyCash, capacity, limits }
+        const state = { inventory, dirtyCash, capacity, limits, sellMult }
         const now = new Date()
         const result = mode === 'buy' ? buy(state, poi, item, qty, now) : sell(state, poi, item, qty, now)
         if (result.ok) {

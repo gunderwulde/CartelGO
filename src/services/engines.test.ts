@@ -86,3 +86,79 @@ describe('heat', () => {
     expect(isBusted(99)).toBe(false)
   })
 })
+
+import { syncIdle, type IdleState } from './idleEngine'
+
+const T0 = 1_000_000_000_000
+const idle = (over: Partial<IdleState> = {}): IdleState => ({
+  storage: {},
+  storageCap: 100,
+  labLevel: 1,
+  job: null,
+  dealers: [],
+  businesses: [],
+  dirtyCash: 0,
+  cleanCash: 0,
+  dealersAt: T0,
+  launderAt: T0,
+  ...over,
+})
+
+describe('laboratorio (offline)', () => {
+  it('produce los lotes que caben en el tiempo transcurrido', () => {
+    const s = idle({ job: { recipe: 'hierba', remaining: 5, nextAt: T0 + 20_000 } })
+    const r = syncIdle(s, T0 + 70_000) // lotes a 20, 40 y 60 s
+    expect(r.storage.hierba).toBe(3)
+    expect(r.job?.remaining).toBe(2)
+  })
+  it('termina el trabajo y lo borra', () => {
+    const s = idle({ job: { recipe: 'hierba', remaining: 2, nextAt: T0 + 20_000 } })
+    const r = syncIdle(s, T0 + 3_600_000)
+    expect(r.storage.hierba).toBe(2)
+    expect(r.job).toBeNull()
+  })
+  it('el almacén lleno detiene la producción sin perder lotes', () => {
+    const s = idle({ storageCap: 2, storage: { hierba: 2 }, job: { recipe: 'hierba', remaining: 3, nextAt: T0 + 1000 } })
+    const r = syncIdle(s, T0 + 3_600_000)
+    expect(r.storage.hierba).toBe(2)
+    expect(r.job?.remaining).toBe(3)
+  })
+  it('un laboratorio mejor es más rápido', () => {
+    const s = idle({ labLevel: 3, job: { recipe: 'hierba', remaining: 9, nextAt: T0 + 10_000 } })
+    expect(syncIdle(s, T0 + 30_000).storage.hierba).toBe(3) // 10 s por lote
+  })
+})
+
+describe('camellos (offline)', () => {
+  const dealer = { id: 'd1', poiId: 'way/1', kind: 'park' as const, name: null }
+  it('venden lo más caro primero y cobran su parte', () => {
+    const s = idle({ dealers: [dealer], storage: { hierba: 5, cristal: 1 } })
+    const r = syncIdle(s, T0 + 60_000) // 2 ticks
+    expect(r.storage).toEqual({ hierba: 4, cristal: 0 })
+    expect(r.dirtyCash).toBe(Math.round(90 * 0.8) + Math.round(30 * 0.8))
+  })
+  it('no venden si no hay existencias', () => {
+    const r = syncIdle(idle({ dealers: [dealer] }), T0 + 600_000)
+    expect(r.dirtyCash).toBe(0)
+  })
+  it('el progreso offline se limita a 8 h', () => {
+    const s = idle({ dealers: [dealer], storage: { hierba: 100000 } })
+    const r = syncIdle(s, T0 + 100 * 3_600_000)
+    expect(r.dirtyCash).toBe(960 * Math.round(30 * 0.8))
+  })
+})
+
+describe('blanqueo', () => {
+  it('convierte sucio en limpio con comisión del 20 %', () => {
+    const s = idle({ dirtyCash: 1000, businesses: [{ poiId: 'n/1', name: null }] })
+    const r = syncIdle(s, T0 + 100_000) // 10 ticks x 5
+    expect(r.dirtyCash).toBe(950)
+    expect(r.cleanCash).toBe(40)
+  })
+  it('no blanquea más de lo que tienes', () => {
+    const s = idle({ dirtyCash: 10, businesses: [{ poiId: 'n/1', name: null }] })
+    const r = syncIdle(s, T0 + 3_600_000)
+    expect(r.dirtyCash).toBe(0)
+    expect(r.cleanCash).toBe(8)
+  })
+})

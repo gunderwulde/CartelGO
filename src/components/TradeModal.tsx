@@ -3,6 +3,8 @@ import type { Poi } from '../types/poi'
 import { ITEMS, type ItemId } from '../data/items'
 import { POI_KINDS } from '../data/poiKinds'
 import { useInventoryStore } from '../store/inventoryStore'
+import { useBaseStore } from '../store/baseStore'
+import { businessCost, purityMult } from '../data/buildings'
 import { carried, dailyRemaining, offersFor, unitPrice } from '../services/tradeEngine'
 
 interface Props {
@@ -18,6 +20,10 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
   const limits = useInventoryStore((s) => s.limits)
   const trade = useInventoryStore((s) => s.trade)
   const setNotice = useInventoryStore((s) => s.setNotice)
+  const labLevel = useBaseStore((s) => s.labLevel)
+  const businesses = useBaseStore((s) => s.businesses)
+  const cleanCash = useInventoryStore((s) => s.cleanCash)
+  const mult = purityMult(labLevel)
 
   const now = new Date()
   const offers = offersFor(poi.kind)
@@ -25,7 +31,8 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
   const remaining = dailyRemaining(poi, limits, now)
 
   const act = (mode: 'buy' | 'sell', item: ItemId, qty: number): void => {
-    const r = trade(mode, poi, item, qty)
+    const r = trade(mode, poi, item, qty, mode === 'sell' ? mult : 1)
+    if (r.ok && mode === 'sell') useBaseStore.getState().addSaleReputation(item, r.qty)
     setNotice(
       r.ok
         ? `${mode === 'buy' ? 'Comprado' : 'Vendido'}: ${r.qty} × ${ITEMS[item].label} por $${r.total}`
@@ -34,7 +41,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
   }
 
   const row = (mode: 'buy' | 'sell', item: ItemId) => {
-    const price = unitPrice(poi.kind, item, now)
+    const price = mode === 'sell' ? Math.round(unitPrice(poi.kind, item, now) * mult) : unitPrice(poi.kind, item, now)
     const owned = inventory[item] ?? 0
     return (
       <div key={`${mode}-${item}`} className="flex items-center gap-2">
@@ -79,9 +86,32 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
         {offers.buy.map((i) => row('buy', i))}
         {offers.sell.map((i) => row('sell', i))}
         {poi.kind === 'pharmacy' && <p className="text-xs font-bold">Te quedan {remaining} unidades hoy en esta farmacia.</p>}
-        {offers.buy.length === 0 && offers.sell.length === 0 && (
+        {poi.kind === 'cover' && (
+          <div>
+            {businesses.some((b) => b.poiId === poi.id) ? (
+              <p className="text-sm font-black">Es tuyo: blanquea dinero automáticamente.</p>
+            ) : (
+              <>
+                <p className="text-sm font-bold mb-2">
+                  Cómpralo para blanquear Dinero Sucio solo (te quedas el 80 %). Tienes ${cleanCash} limpios.
+                </p>
+                <button
+                  className="cartoon-btn px-3 py-2 text-sm"
+                  disabled={blocked}
+                  onClick={() => {
+                    const r = useBaseStore.getState().buyBusiness(poi)
+                    setNotice(r.ok ? r.message : r.reason)
+                  }}
+                >
+                  Comprar ${businessCost(businesses.length)}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {offers.buy.length === 0 && offers.sell.length === 0 && poi.kind !== 'cover' && (
           <p className="text-sm font-bold">
-            {poi.kind === 'police' ? 'Aquí no se hacen negocios. Aléjate, que te estás calentando.' : 'Todavía no hay nada que hacer aquí.'}
+            Aquí no se hacen negocios. Aléjate, que te estás calentando.
           </p>
         )}
       </div>

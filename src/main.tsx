@@ -13,9 +13,9 @@ createRoot(document.getElementById('root')!).render(
 
 // Solo desarrollo: acceso a los stores desde la consola del navegador
 if (import.meta.env.DEV) {
-  void Promise.all([import('./store/playerStore'), import('./store/mapStore'), import('./store/inventoryStore')]).then(
-    ([p, m, i]) => {
-      Object.assign(window, { __cartel: { player: p.usePlayerStore, map: m.useMapStore, inv: i.useInventoryStore } })
+  void Promise.all([import('./store/playerStore'), import('./store/mapStore'), import('./store/inventoryStore'), import('./store/baseStore')]).then(
+    ([p, m, i, b]) => {
+      Object.assign(window, { __cartel: { player: p.usePlayerStore, map: m.useMapStore, inv: i.useInventoryStore, base: b.useBaseStore } })
     },
   )
 }

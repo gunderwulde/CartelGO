@@ -2,14 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import GameMap from './map/GameMap'
 import { usePlayerStore } from './store/playerStore'
 import { useMapStore } from './store/mapStore'
+import { useInventoryStore } from './store/inventoryStore'
 import { useGps } from './services/useGps'
 import { usePois } from './services/usePois'
+import { useIdle } from './services/useIdle'
+import { useBaseStore } from './store/baseStore'
+import HqPanel from './components/HqPanel'
 import { useHeat } from './services/useHeat'
 import { useSimulation } from './services/useSimulation'
 import { haversine, INTERACTION_RADIUS_M } from './services/geoService'
 import { StatsBar, Toast } from './components/Stats'
 import TradeModal from './components/TradeModal'
-import { BottomButtons, DrivingWarning, GpsBlocker, NearbyPois, PoiStatus, TopBar } from './components/Hud'
+import { BottomButtons, DrivingWarning, GpsBlocker, NearbyPois, PlaceHqBanner, PoiStatus, TopBar } from './components/Hud'
 
 /** Herramienta de desarrollo: abrir con ?sim para mover el avatar sin GPS. */
 const DEV_SIM = new URLSearchParams(window.location.search).has('sim')
@@ -19,6 +23,8 @@ export default function App() {
   const [follow, setFollow] = useState(true)
   const [retry, setRetry] = useState(0)
   const [poiRetry, setPoiRetry] = useState(0)
+  const [hqOpen, setHqOpen] = useState(false)
+  const hq = useBaseStore((s) => s.hq)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const status = usePlayerStore((s) => s.gpsStatus)
@@ -36,6 +42,7 @@ export default function App() {
   useGps(started, retry)
   usePois(started, poiRetry)
   useHeat(started)
+  useIdle(started)
   useSimulation(started && simulation)
 
   const nearby = useMemo(() => {
@@ -46,6 +53,11 @@ export default function App() {
       .sort((a, b) => a.d - b.d)
       .map((x) => x.p)
   }, [position, pois])
+
+  // Los lugares a menos de 50 m quedan "descubiertos" (se podrá asignarles camellos)
+  useEffect(() => {
+    if (nearby.length > 0) useBaseStore.getState().markVisited(nearby)
+  }, [nearby])
 
   const selected = nearby.find((p) => p.id === selectedId) ?? null
 
@@ -74,10 +86,19 @@ export default function App() {
       {driving && <DrivingWarning />}
       {!simulation && <GpsBlocker status={status} onRetry={() => setRetry((n) => n + 1)} />}
       <StatsBar />
+      {!hq && position && !selected && (
+        <PlaceHqBanner
+          onPlace={() => {
+            const r = useBaseStore.getState().placeHq(position)
+            useInventoryStore.getState().setNotice(r.ok ? r.message : r.reason)
+          }}
+        />
+      )}
       {!selected && <NearbyPois pois={nearby} onSelect={(p) => setSelectedId(p.id)} />}
       {selected && <TradeModal poi={selected} blocked={driving} onClose={() => setSelectedId(null)} />}
       <Toast />
-      <BottomButtons follow={follow} onToggleFollow={() => setFollow((f) => !f)} />
+      <BottomButtons follow={follow} onToggleFollow={() => setFollow((f) => !f)} onHq={() => setHqOpen(true)} />
+      {hqOpen && <HqPanel onClose={() => setHqOpen(false)} />}
     </div>
   )
 }

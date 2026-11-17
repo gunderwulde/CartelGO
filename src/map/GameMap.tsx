@@ -7,6 +7,7 @@ maplibregl.setWorkerUrl(workerUrl)
 import { usePlayerStore } from '../store/playerStore'
 import { INTERACTION_RADIUS_M } from '../services/geoService'
 import { useMapStore } from '../store/mapStore'
+import { useBaseStore } from '../store/baseStore'
 import { addPoiLayers, circlePolygon, setPois } from './poiLayer'
 import { MAP_STYLE_URL, applyCartoonStyle } from './cartoonStyle'
 
@@ -37,6 +38,19 @@ export default function GameMap({ follow }: Props) {
     const el = document.createElement('div')
     el.className = 'avatar'
     const marker = new maplibregl.Marker({ element: el })
+
+    const hqEl = document.createElement('div')
+    hqEl.className = 'hq-marker'
+    hqEl.textContent = '🏠'
+    const hqMarker = new maplibregl.Marker({ element: hqEl })
+    const showHq = (hq: { lat: number; lng: number } | null): void => {
+      if (hq) hqMarker.setLngLat([hq.lng, hq.lat]).addTo(map)
+      else hqMarker.remove()
+    }
+    showHq(useBaseStore.getState().hq)
+    const unsubHq = useBaseStore.subscribe((s, prev) => {
+      if (s.hq !== prev.hq) showHq(s.hq)
+    })
 
     function update(lng: number, lat: number): void {
       marker.setLngLat([lng, lat]).addTo(map)
@@ -85,6 +99,7 @@ export default function GameMap({ follow }: Props) {
     return () => {
       unsub()
       unsubPois()
+      unsubHq()
       map.remove()
     }
   }, [])

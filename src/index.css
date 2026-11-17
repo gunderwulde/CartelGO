@@ -37,3 +37,9 @@ body,
   box-shadow: 5px 5px 0 #111;
   background: #fff;
 }
+
+.hq-marker {
+  font-size: 30px;
+  line-height: 1;
+  filter: drop-shadow(2px 2px 0 #111);
+}

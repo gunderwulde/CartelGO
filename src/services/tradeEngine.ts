@@ -22,6 +22,8 @@ export interface TradeState {
   dirtyCash: number
   capacity: number
   limits: DailyLimits
+  /** Multiplicador de pureza sobre el precio de venta (por defecto 1) */
+  sellMult?: number
 }
 
 export interface TradePoi {
@@ -103,7 +105,7 @@ export function sell(state: TradeState, poi: TradePoi, item: ItemId, requested: 
   if (!offersFor(poi.kind).sell.includes(item)) return { ok: false, reason: 'Aquí no compran eso.' }
   const qty = Math.min(requested, state.inventory[item] ?? 0)
   if (qty < 1) return { ok: false, reason: 'No llevas nada de eso.' }
-  const total = qty * unitPrice(poi.kind, item, now)
+  const total = qty * Math.round(unitPrice(poi.kind, item, now) * (state.sellMult ?? 1))
   return {
     ok: true,
     qty,

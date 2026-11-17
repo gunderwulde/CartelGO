@@ -73,13 +73,14 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 
 ## Sprint 4 - Base e Idle
 
-- [ ] Colocación del HQ (movible gratis cada 7 días). **Privacidad:** guardar coordenadas solo en local; para cualquier envío futuro usar H3 res. 7 u offset aleatorio.
-- [ ] `idleEngine.ts`: producción por delta `Date.now()` vs `lastSyncTimestamp` (no depender de `setInterval`).
-- [ ] Laboratorio: precursores → mercancía, con niveles de velocidad/pureza.
-- [ ] Camellos asignados a POIs descubiertos → ingresos pasivos.
-- [ ] Negocios tapadera (lavandería/autolavado): blanqueo Dinero Sucio → Dinero Limpio.
-- [ ] Mejoras de HQ, almacén y mochila con Dinero Limpio; sistema de Reputación (XP) y desbloqueo de Tiers.
-- [ ] Tests unitarios del `idleEngine` y del cálculo de precios/Heat.
+- [x] Colocación del HQ (movible gratis cada 7 días). **Privacidad:** guardar coordenadas solo en local; para cualquier envío futuro usar H3 res. 7 u offset aleatorio.
+- [x] `idleEngine.ts`: producción por delta `Date.now()` vs `lastSyncTimestamp` (no depender de `setInterval`).
+- [x] Laboratorio: precursores → mercancía, con niveles de velocidad/pureza.
+- [x] Camellos asignados a POIs descubiertos → ingresos pasivos.
+- [x] Negocios tapadera (lavandería/autolavado): blanqueo Dinero Sucio → Dinero Limpio.
+- [x] Mejoras de HQ, almacén y mochila con Dinero Limpio; sistema de Reputación (XP) y desbloqueo de Tiers.
+- [x] Tests unitarios del `idleEngine` (21 tests en total con precios y Heat).
+- [ ] **Decisiones de balance a revisar en el Sprint 5:** costes de mejoras, ritmo de camellos (1 ud/30 s, cobran 80 %), blanqueo (5 $/10 s por negocio, se queda 80 %), tope offline de 8 h, 250 $ limpios iniciales.
 
 ## Sprint 5 - Pulido
 

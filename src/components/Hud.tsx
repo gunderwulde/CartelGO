@@ -1,4 +1,4 @@
-import { Crosshair, Navigation, TriangleAlert } from 'lucide-react'
+import { Crosshair, House, Navigation, TriangleAlert } from 'lucide-react'
 import type { GpsStatus } from '../types'
 import type { Poi } from '../types/poi'
 import type { PoiLoadStatus } from '../store/mapStore'
@@ -59,11 +59,15 @@ export function GpsBlocker({ status, onRetry }: { status: GpsStatus; onRetry: ()
 interface BottomProps {
   follow: boolean
   onToggleFollow: () => void
+  onHq: () => void
 }
 
-export function BottomButtons({ follow, onToggleFollow }: BottomProps) {
+export function BottomButtons({ follow, onToggleFollow, onHq }: BottomProps) {
   return (
     <div className="absolute right-3 bottom-[max(1rem,env(safe-area-inset-bottom))] flex flex-col gap-3">
+      <button className="cartoon-btn w-14 h-14 flex items-center justify-center" onClick={onHq} aria-label="Cuartel General">
+        <House />
+      </button>
       <button
         className={`cartoon-btn w-14 h-14 flex items-center justify-center ${follow ? '' : 'bg-white!'}`}
         onClick={onToggleFollow}
@@ -110,6 +114,20 @@ export function NearbyPois({ pois, onSelect }: { pois: Poi[]; onSelect: (p: Poi)
           <span className="ml-auto text-xs font-bold opacity-70 shrink-0">{POI_KINDS[p.kind].label}</span>
         </button>
       ))}
+    </div>
+  )
+}
+
+export function PlaceHqBanner({ onPlace }: { onPlace: () => void }) {
+  return (
+    <div className="absolute inset-x-3 bottom-[max(1rem,env(safe-area-inset-bottom))] mr-20 cartoon-card p-3 z-10">
+      <p className="font-black leading-tight">Elige dónde montar tu Cuartel General</p>
+      <p className="text-xs font-bold mb-2">
+        Se coloca donde estás ahora. Su posición exacta solo se guarda en tu móvil y puedes moverlo gratis cada 7 días.
+      </p>
+      <button className="cartoon-btn px-3 py-2 text-sm" onClick={onPlace}>
+        Colocar HQ aquí
+      </button>
     </div>
   )
 }
