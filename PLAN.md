@@ -54,11 +54,11 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 
 ## Sprint 2 - Mundo real (Overpass)
 
-- [ ] `osmService.ts`: consulta Overpass por hexágono H3 / radio 1.5 km con las etiquetas del GDD §3 (`industrial`, `pharmacy`, `park`, `bar`/`nightclub`, `police`, `laundry`/`car_wash`).
-- [ ] Parser OSM → POIs del juego (tipo, rol, posición; polígonos → centroide).
-- [ ] **Caché en IndexedDB ≥ 24 h** por hexágono; nunca consultar en cada tick de GPS.
-- [ ] Gestión de errores/rate-limit de Overpass (reintentos con backoff, endpoint alternativo).
-- [ ] Pintar marcadores/iconos por tipo y radio de 50 m del radar; círculo de influencia de comisarías.
+- [x] `osmService.ts`: consulta Overpass por hexágono H3 / radio 1.5 km con las etiquetas del GDD §3 (`industrial`, `pharmacy`, `park`, `bar`/`nightclub`, `police`, `laundry`/`car_wash`).
+- [x] Parser OSM → POIs del juego (tipo, rol, posición; polígonos → centroide).
+- [x] **Caché en IndexedDB ≥ 24 h** por hexágono; nunca consultar en cada tick de GPS.
+- [x] Gestión de errores/rate-limit de Overpass (3 endpoints, timeout de 20 s, reintento con enfriamiento de 30 s).
+- [x] Pintar marcadores (círculos de color) por tipo y radio de 50 m del radar; círculo de influencia de comisarías.
 
 ## Sprint 3 - Loop de calle
 

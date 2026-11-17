@@ -1,28 +1,17 @@
 import { useEffect, useRef } from 'react'
 import * as maplibregl from 'maplibre-gl'
-import type { Feature, Polygon } from 'geojson'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 
 maplibregl.setWorkerUrl(workerUrl)
 import { usePlayerStore } from '../store/playerStore'
 import { INTERACTION_RADIUS_M } from '../services/geoService'
+import { useMapStore } from '../store/mapStore'
+import { addPoiLayers, circlePolygon, setPois } from './poiLayer'
 import { MAP_STYLE_URL, applyCartoonStyle } from './cartoonStyle'
 
 const RADAR_SOURCE = 'radar'
 const DEFAULT_CENTER: [number, number] = [-3.7038, 40.4168] // Madrid, hasta tener GPS
-
-/** Polígono circular aproximado (metros → grados). */
-function circle(lng: number, lat: number, radiusM: number): Feature<Polygon> {
-  const pts: [number, number][] = []
-  const dLat = radiusM / 111_320
-  const dLng = radiusM / (111_320 * Math.cos((lat * Math.PI) / 180))
-  for (let i = 0; i <= 48; i++) {
-    const a = (i / 48) * 2 * Math.PI
-    pts.push([lng + dLng * Math.cos(a), lat + dLat * Math.sin(a)])
-  }
-  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [pts] } }
-}
 
 interface Props {
   follow: boolean
@@ -52,7 +41,7 @@ export default function GameMap({ follow }: Props) {
     function update(lng: number, lat: number): void {
       marker.setLngLat([lng, lat]).addTo(map)
       if (ready) {
-        ;(map.getSource(RADAR_SOURCE) as maplibregl.GeoJSONSource).setData(circle(lng, lat, INTERACTION_RADIUS_M))
+        ;(map.getSource(RADAR_SOURCE) as maplibregl.GeoJSONSource).setData(circlePolygon(lng, lat, INTERACTION_RADIUS_M))
       }
       if (!centered) {
         map.jumpTo({ center: [lng, lat], zoom: 17 })
@@ -64,7 +53,7 @@ export default function GameMap({ follow }: Props) {
 
     map.on('load', () => {
       applyCartoonStyle(map)
-      map.addSource(RADAR_SOURCE, { type: 'geojson', data: circle(0, 0, 1) })
+      map.addSource(RADAR_SOURCE, { type: 'geojson', data: circlePolygon(0, 0, 1) })
       map.addLayer({
         id: 'radar-fill',
         type: 'fill',
@@ -77,6 +66,8 @@ export default function GameMap({ follow }: Props) {
         source: RADAR_SOURCE,
         paint: { 'line-color': '#111111', 'line-width': 3, 'line-dasharray': [2, 1] },
       })
+      addPoiLayers(map)
+      setPois(map, Object.values(useMapStore.getState().pois))
       ready = true
       const p = usePlayerStore.getState().position
       if (p) update(p.lng, p.lat)
@@ -85,11 +76,15 @@ export default function GameMap({ follow }: Props) {
     const unsub = usePlayerStore.subscribe((s, prev) => {
       if (s.position && s.position !== prev.position) update(s.position.lng, s.position.lat)
     })
+    const unsubPois = useMapStore.subscribe((s, prev) => {
+      if (ready && s.pois !== prev.pois) setPois(map, Object.values(s.pois))
+    })
     const initial = usePlayerStore.getState().position
     if (initial) update(initial.lng, initial.lat)
 
     return () => {
       unsub()
+      unsubPois()
       map.remove()
     }
   }, [])

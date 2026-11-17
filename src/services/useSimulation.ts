@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { usePlayerStore } from '../store/playerStore'
 
-export type Dir = 'up' | 'down' | 'left' | 'right'
+type Dir = 'up' | 'down' | 'left' | 'right'
 
 const WALK_MS = 1.6 // m/s ≈ 5.8 km/h
-const TURBO_MS = 12 // m/s ≈ 43 km/h, para probar el anti-cheat
+const DRIVE_MS = 12 // m/s ≈ 43 km/h (prueba del anti-cheat)
 const TICK_MS = 250
 const START = { lat: 40.4168, lng: -3.7038 } // Madrid
 
@@ -19,16 +19,10 @@ const KEY_TO_DIR: Record<string, Dir> = {
   d: 'right',
 }
 
-export interface SimControls {
-  press: (d: Dir) => void
-  release: (d: Dir) => void
-}
-
-/** Mueve al avatar manualmente (botones o teclado) para probar sin caminar. */
-export function useSimulation(active: boolean, turbo: boolean): SimControls {
+/** Herramienta de desarrollo (?sim): mueve al avatar con flechas/WASD. Mantén Shift para ir en coche. */
+export function useSimulation(active: boolean): void {
   const held = useRef(new Set<Dir>())
-  const turboRef = useRef(turbo)
-  turboRef.current = turbo
+  const fast = useRef(false)
 
   useEffect(() => {
     if (!active) {
@@ -50,7 +44,7 @@ export function useSimulation(active: boolean, turbo: boolean): SimControls {
       if (held.current.has('left')) dx -= 1
       if (held.current.has('right')) dx += 1
       const norm = Math.hypot(dx, dy) || 1
-      const dist = (turboRef.current ? TURBO_MS : WALK_MS) * (TICK_MS / 1000)
+      const dist = (fast.current ? DRIVE_MS : WALK_MS) * (TICK_MS / 1000)
       const mx = (dx / norm) * dist
       const my = (dy / norm) * dist
       usePlayerStore.getState().pushFix({
@@ -62,14 +56,16 @@ export function useSimulation(active: boolean, turbo: boolean): SimControls {
     }, TICK_MS)
 
     const down = (e: KeyboardEvent): void => {
-      const d = KEY_TO_DIR[e.key]
+      fast.current = e.shiftKey
+      const d = KEY_TO_DIR[e.key.length === 1 ? e.key.toLowerCase() : e.key]
       if (d) {
         held.current.add(d)
         e.preventDefault()
       }
     }
     const up = (e: KeyboardEvent): void => {
-      const d = KEY_TO_DIR[e.key]
+      fast.current = e.shiftKey
+      const d = KEY_TO_DIR[e.key.length === 1 ? e.key.toLowerCase() : e.key]
       if (d) held.current.delete(d)
     }
     window.addEventListener('keydown', down)
@@ -80,9 +76,4 @@ export function useSimulation(active: boolean, turbo: boolean): SimControls {
       window.removeEventListener('keyup', up)
     }
   }, [active])
-
-  return {
-    press: (d) => held.current.add(d),
-    release: (d) => held.current.delete(d),
-  }
 }

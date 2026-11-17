@@ -1,6 +1,8 @@
-import { Crosshair, Gamepad2, Navigation, TriangleAlert } from 'lucide-react'
+import { Crosshair, Navigation, TriangleAlert } from 'lucide-react'
 import type { GpsStatus } from '../types'
-import type { Dir, SimControls } from '../services/useSimulation'
+import type { Poi } from '../types/poi'
+import type { PoiLoadStatus } from '../store/mapStore'
+import { POI_KINDS } from '../data/poiKinds'
 
 const STATUS_TEXT: Record<GpsStatus, string> = {
   idle: 'GPS apagado',
@@ -54,56 +56,12 @@ export function GpsBlocker({ status, onRetry }: { status: GpsStatus; onRetry: ()
   )
 }
 
-interface PadProps {
-  sim: SimControls
-  turbo: boolean
-  onTurbo: () => void
-}
-
-function PadBtn({ dir, sim, label }: { dir: Dir; sim: SimControls; label: string }) {
-  return (
-    <button
-      className="cartoon-btn w-14 h-14 text-xl"
-      onPointerDown={(e) => {
-        e.currentTarget.setPointerCapture(e.pointerId)
-        sim.press(dir)
-      }}
-      onPointerUp={() => sim.release(dir)}
-      onPointerCancel={() => sim.release(dir)}
-      aria-label={dir}
-    >
-      {label}
-    </button>
-  )
-}
-
-export function DebugPad({ sim, turbo, onTurbo }: PadProps) {
-  return (
-    <div className="absolute left-3 bottom-[max(1rem,env(safe-area-inset-bottom))] flex flex-col items-center gap-1">
-      <PadBtn dir="up" sim={sim} label="▲" />
-      <div className="flex gap-1">
-        <PadBtn dir="left" sim={sim} label="◀" />
-        <PadBtn dir="down" sim={sim} label="▼" />
-        <PadBtn dir="right" sim={sim} label="▶" />
-      </div>
-      <button
-        className={`cartoon-btn px-3 py-1 text-xs mt-1 ${turbo ? 'bg-red-400!' : ''}`}
-        onClick={onTurbo}
-      >
-        Turbo {turbo ? 'ON' : 'OFF'}
-      </button>
-    </div>
-  )
-}
-
 interface BottomProps {
-  simulation: boolean
   follow: boolean
-  onToggleSim: () => void
   onToggleFollow: () => void
 }
 
-export function BottomButtons({ simulation, follow, onToggleSim, onToggleFollow }: BottomProps) {
+export function BottomButtons({ follow, onToggleFollow }: BottomProps) {
   return (
     <div className="absolute right-3 bottom-[max(1rem,env(safe-area-inset-bottom))] flex flex-col gap-3">
       <button
@@ -113,13 +71,45 @@ export function BottomButtons({ simulation, follow, onToggleSim, onToggleFollow 
       >
         <Crosshair />
       </button>
-      <button
-        className={`cartoon-btn w-14 h-14 flex items-center justify-center ${simulation ? 'bg-green-400!' : 'bg-white!'}`}
-        onClick={onToggleSim}
-        aria-label="Modo simulación"
-      >
-        <Gamepad2 />
-      </button>
+    </div>
+  )
+}
+
+interface PoiStatusProps {
+  status: PoiLoadStatus
+  count: number
+  onRetry: () => void
+}
+
+export function PoiStatus({ status, count, onRetry }: PoiStatusProps) {
+  if (status === 'idle' || status === 'ready') return null
+  return (
+    <div className="absolute left-3 top-[4.25rem] cartoon-card px-3 py-1.5 text-xs font-black flex items-center gap-2">
+      {status === 'loading' ? (
+        <>Explorando el barrio… ({count})</>
+      ) : (
+        <>
+          Sin conexión con el mapa de la calle
+          <button className="cartoon-btn px-2 py-0.5" onClick={onRetry}>
+            Reintentar
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+export function NearbyPois({ pois }: { pois: Poi[] }) {
+  if (pois.length === 0) return null
+  return (
+    <div className="absolute inset-x-3 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+5.5rem))] mx-auto max-w-sm cartoon-card p-2 flex flex-col gap-1">
+      {pois.slice(0, 3).map((p) => (
+        <div key={p.id} className="flex items-center gap-2 text-sm font-black">
+          <span className="w-4 h-4 rounded-full border-2 border-black shrink-0" style={{ background: POI_KINDS[p.kind].color }} />
+          <span className="truncate">{p.name ?? POI_KINDS[p.kind].label}</span>
+          <span className="ml-auto text-xs font-bold opacity-70 shrink-0">{POI_KINDS[p.kind].label}</span>
+        </div>
+      ))}
     </div>
   )
 }

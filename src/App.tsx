@@ -1,24 +1,46 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import GameMap from './map/GameMap'
 import { usePlayerStore } from './store/playerStore'
+import { useMapStore } from './store/mapStore'
 import { useGps } from './services/useGps'
+import { usePois } from './services/usePois'
 import { useSimulation } from './services/useSimulation'
-import { BottomButtons, DebugPad, DrivingWarning, GpsBlocker, TopBar } from './components/Hud'
+import { haversine, INTERACTION_RADIUS_M } from './services/geoService'
+import { BottomButtons, DrivingWarning, GpsBlocker, NearbyPois, PoiStatus, TopBar } from './components/Hud'
+
+/** Herramienta de desarrollo: abrir con ?sim para mover el avatar sin GPS. */
+const DEV_SIM = new URLSearchParams(window.location.search).has('sim')
 
 export default function App() {
-  const [started, setStarted] = useState(false)
+  const [started, setStarted] = useState(DEV_SIM)
   const [follow, setFollow] = useState(true)
-  const [turbo, setTurbo] = useState(false)
   const [retry, setRetry] = useState(0)
+  const [poiRetry, setPoiRetry] = useState(0)
 
   const status = usePlayerStore((s) => s.gpsStatus)
   const speed = usePlayerStore((s) => s.speed)
   const driving = usePlayerStore((s) => s.driving)
   const simulation = usePlayerStore((s) => s.simulation)
-  const setSimulation = usePlayerStore((s) => s.setSimulation)
+  const position = usePlayerStore((s) => s.position)
+  const pois = useMapStore((s) => s.pois)
+  const poiStatus = useMapStore((s) => s.status)
+
+  useEffect(() => {
+    if (DEV_SIM) usePlayerStore.getState().setSimulation(true)
+  }, [])
 
   useGps(started, retry)
-  const sim = useSimulation(started && simulation, turbo)
+  usePois(started, poiRetry)
+  useSimulation(started && simulation)
+
+  const nearby = useMemo(() => {
+    if (!position) return []
+    return Object.values(pois)
+      .map((p) => ({ p, d: haversine(position, p) }))
+      .filter((x) => x.d <= INTERACTION_RADIUS_M)
+      .sort((a, b) => a.d - b.d)
+      .map((x) => x.p)
+  }, [position, pois])
 
   if (!started) {
     return (
@@ -32,15 +54,6 @@ export default function App() {
         <button className="cartoon-btn px-8 py-4 text-2xl" onClick={() => setStarted(true)}>
           ¡A la calle!
         </button>
-        <button
-          className="cartoon-btn px-4 py-2 text-sm bg-white!"
-          onClick={() => {
-            setSimulation(true)
-            setStarted(true)
-          }}
-        >
-          Probar sin GPS (simulación)
-        </button>
         <p className="text-xs font-bold opacity-70">v{__APP_VERSION__} · {__BUILD_DATE__}</p>
       </main>
     )
@@ -50,18 +63,11 @@ export default function App() {
     <div className="relative h-full w-full">
       <GameMap follow={follow} />
       <TopBar status={status} speed={speed} simulation={simulation} />
+      <PoiStatus status={poiStatus} count={Object.keys(pois).length} onRetry={() => setPoiRetry((n) => n + 1)} />
       {driving && <DrivingWarning />}
       {!simulation && <GpsBlocker status={status} onRetry={() => setRetry((n) => n + 1)} />}
-      {simulation && <DebugPad sim={sim} turbo={turbo} onTurbo={() => setTurbo((t) => !t)} />}
-      <BottomButtons
-        simulation={simulation}
-        follow={follow}
-        onToggleSim={() => {
-          setTurbo(false)
-          setSimulation(!simulation)
-        }}
-        onToggleFollow={() => setFollow((f) => !f)}
-      />
+      {!driving && <NearbyPois pois={nearby} />}
+      <BottomButtons follow={follow} onToggleFollow={() => setFollow((f) => !f)} />
     </div>
   )
 }
