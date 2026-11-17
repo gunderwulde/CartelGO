@@ -39,7 +39,7 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 - [x] Avatar del jugador moviéndose en el mapa.
 - [x] **Anti-cheat:** velocidad > 25 km/h → bloquear interacciones y mostrar aviso "Modo Conducción".
 - [x] Modo debug/simulación (mover el avatar con el dedo o teclado) para poder testear en escritorio sin caminar.
-- [~] Iconos PWA (placeholder amarillo; falta diseño real) (192/512, maskable) y splash.
+- [x] Iconos PWA (chincheta cartoon) (192/512, maskable) y splash.
 
 ## Sprint 1.5 - Actualización de la app instalada
 
@@ -84,12 +84,12 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 
 ## Sprint 5 - Pulido
 
-- [ ] Efectos de sonido cartoon y opción de silencio.
-- [ ] Notificaciones locales ("Lote terminado"). Nota: en iOS solo funcionan con la PWA instalada; sin backend/push las notificaciones fiables son limitadas → valorar y documentar.
-- [ ] Balanceo económico.
-- [ ] Onboarding (permiso de GPS, aviso de seguridad al caminar, tono satírico).
-- [ ] Revisión de rendimiento y batería en móvil (frecuencia de `watchPosition`, repintados del mapa).
-- [ ] Revisión legal/stores: aviso de que todo es ficticio, sin drogas reales.
+- [x] Efectos de sonido cartoon (sintetizados con WebAudio, sin ficheros) y botón de silencio.
+- [x] Notificaciones locales de "Lote terminado" cuando la app sigue viva en segundo plano, y resumen "Mientras no estabas" al volver. Sin servidor push no hay avisos con la app cerrada (limitación de iOS/PWA).
+- [x] Primer balanceo: 350 $ limpios iniciales (alcanza para 1 negocio + 1 camello). Pendiente afinar con pruebas reales de calle.
+- [x] Onboarding (permiso de GPS, aviso de seguridad al caminar, tono satírico).
+- [x] Rendimiento: MapLibre en carga diferida (pantalla inicial 1,3 MB → 477 kB) y filtro de lecturas GPS repetidas. Falta medir batería en un móvil real.
+- [x] Aviso de que todo es ficticio en el onboarding. Pendiente si se publica en tiendas: revisión legal y nombre definitivo.
 
 ---
 

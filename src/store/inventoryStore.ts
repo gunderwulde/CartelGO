@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { del, get, set } from 'idb-keyval'
 import type { ItemId } from '../data/items'
+import { play } from '../services/sound'
 import { START_CLEAN_CASH } from '../data/buildings'
 import { HEAT_AFTER_RAID, START_CAPACITY, START_DIRTY_CASH, START_INVENTORY } from '../data/balance'
 import { buy, sell, dayKey, type DailyLimits, type Inventory, type TradePoi, type TradeResult } from '../services/tradeEngine'
@@ -55,8 +56,10 @@ export const useInventoryStore = create<InventoryState>()(
         return result
       },
       setHeat: (heat) => set({ heat }),
-      raid: () =>
-        set({ inventory: {}, heat: HEAT_AFTER_RAID, notice: '¡Redada! La policía se ha quedado con tu mercancía.' }),
+      raid: () => {
+        play('raid')
+        set({ inventory: {}, heat: HEAT_AFTER_RAID, notice: '¡Redada! La policía se ha quedado con tu mercancía.' })
+      },
       setNotice: (notice) => set({ notice }),
     }),
     {

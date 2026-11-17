@@ -1,8 +1,9 @@
-import { Crosshair, House, Navigation, TriangleAlert } from 'lucide-react'
+import { Crosshair, House, Navigation, TriangleAlert, Volume2, VolumeX } from 'lucide-react'
 import type { GpsStatus } from '../types'
 import type { Poi } from '../types/poi'
 import type { PoiLoadStatus } from '../store/mapStore'
 import { POI_KINDS } from '../data/poiKinds'
+import { setMuted, useMuted } from '../services/sound'
 
 const STATUS_TEXT: Record<GpsStatus, string> = {
   idle: 'GPS apagado',
@@ -63,8 +64,16 @@ interface BottomProps {
 }
 
 export function BottomButtons({ follow, onToggleFollow, onHq }: BottomProps) {
+  const muted = useMuted()
   return (
     <div className="absolute right-3 bottom-[max(1rem,env(safe-area-inset-bottom))] flex flex-col gap-3">
+      <button
+        className="cartoon-btn w-14 h-14 flex items-center justify-center bg-white!"
+        onClick={() => setMuted(!muted)}
+        aria-label={muted ? 'Activar sonido' : 'Silenciar'}
+      >
+        {muted ? <VolumeX /> : <Volume2 />}
+      </button>
       <button className="cartoon-btn w-14 h-14 flex items-center justify-center" onClick={onHq} aria-label="Cuartel General">
         <House />
       </button>

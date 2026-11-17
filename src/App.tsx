@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import GameMap from './map/GameMap'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import Onboarding from './components/Onboarding'
+import { unlockAudio } from './services/sound'
 import { usePlayerStore } from './store/playerStore'
 import { useMapStore } from './store/mapStore'
 import { useInventoryStore } from './store/inventoryStore'
@@ -15,11 +16,24 @@ import { StatsBar, Toast } from './components/Stats'
 import TradeModal from './components/TradeModal'
 import { BottomButtons, DrivingWarning, GpsBlocker, NearbyPois, PlaceHqBanner, PoiStatus, TopBar } from './components/Hud'
 
+// MapLibre pesa ~1 MB: no se descarga hasta que se empieza a jugar
+const GameMap = lazy(() => import('./map/GameMap'))
+
+const ONBOARDED_KEY = 'cartelgo:onboarded'
+const wasOnboarded = (): boolean => {
+  try {
+    return localStorage.getItem(ONBOARDED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 /** Herramienta de desarrollo: abrir con ?sim para mover el avatar sin GPS. */
 const DEV_SIM = new URLSearchParams(window.location.search).has('sim')
 
 export default function App() {
   const [started, setStarted] = useState(DEV_SIM)
+  const [onboarded, setOnboarded] = useState(wasOnboarded)
   const [follow, setFollow] = useState(true)
   const [retry, setRetry] = useState(0)
   const [poiRetry, setPoiRetry] = useState(0)
@@ -67,12 +81,33 @@ export default function App() {
         <h1 className="text-5xl font-black border-4 border-black bg-white px-6 py-4 shadow-[6px_6px_0_#000] -rotate-2">
           Cartel GO
         </h1>
-        <p className="font-bold max-w-xs">
-          Juego ficticio y satírico. Necesita tu ubicación. Mira por dónde andas y nunca juegues al volante.
-        </p>
-        <button className="cartoon-btn px-8 py-4 text-2xl" onClick={() => setStarted(true)}>
-          ¡A la calle!
-        </button>
+        {onboarded ? (
+          <>
+            <p className="font-bold max-w-xs">Juego ficticio y satírico. Mira por dónde andas y nunca juegues al volante.</p>
+            <button
+              className="cartoon-btn px-8 py-4 text-2xl"
+              onClick={() => {
+                unlockAudio()
+                setStarted(true)
+              }}
+            >
+              ¡A la calle!
+            </button>
+          </>
+        ) : (
+          <Onboarding
+            onDone={() => {
+              try {
+                localStorage.setItem(ONBOARDED_KEY, '1')
+              } catch {
+                /* sin almacenamiento: se mostrará de nuevo */
+              }
+              unlockAudio()
+              setOnboarded(true)
+              setStarted(true)
+            }}
+          />
+        )}
         <p className="text-xs font-bold opacity-70">v{__APP_VERSION__} · {__BUILD_DATE__}</p>
       </main>
     )
@@ -80,7 +115,9 @@ export default function App() {
 
   return (
     <div className="relative h-full w-full">
-      <GameMap follow={follow} />
+      <Suspense fallback={null}>
+        <GameMap follow={follow} />
+      </Suspense>
       <TopBar status={status} speed={speed} simulation={simulation} />
       <PoiStatus status={poiStatus} count={Object.keys(pois).length} onRetry={() => setPoiRetry((n) => n + 1)} />
       {driving && <DrivingWarning />}

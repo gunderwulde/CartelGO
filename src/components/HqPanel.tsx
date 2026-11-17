@@ -20,6 +20,8 @@ import { batchDurationMs } from '../services/idleEngine'
 import { haversine } from '../services/geoService'
 import { carried } from '../services/tradeEngine'
 import { useNow } from '../services/useIdle'
+import { play, type Sfx } from '../services/sound'
+import { requestNotifyPermission } from '../services/notify'
 
 type Tab = 'almacen' | 'lab' | 'camellos' | 'mejoras'
 const TABS: { id: Tab; label: string }[] = [
@@ -44,7 +46,10 @@ export default function HqPanel({ onClose }: { onClose: () => void }) {
   const setNotice = useInventoryStore((s) => s.setNotice)
   const now = useNow(1000)
 
-  const report = (r: ActionResult): void => setNotice(r.ok ? r.message : r.reason)
+  const report = (r: ActionResult, sfx: Sfx = 'tap'): void => {
+    play(r.ok ? sfx : 'error')
+    setNotice(r.ok ? r.message : r.reason)
+  }
   const atHq = isNearHq(base.hq, position)
 
   const btn = 'cartoon-btn px-3 py-1.5 text-sm disabled:opacity-40'
@@ -113,10 +118,10 @@ export default function HqPanel({ onClose }: { onClose: () => void }) {
               </p>
             ) : (
               <div className="flex gap-2 mt-1">
-                <button className={btn} onClick={() => report(base.startJob(r.id, 1))}>
+                <button className={btn} onClick={() => { void requestNotifyPermission(); report(base.startJob(r.id, 1)) }}>
                   Cocinar 1
                 </button>
-                <button className={`${btn} bg-white!`} onClick={() => report(base.startJob(r.id, 999))}>
+                <button className={`${btn} bg-white!`} onClick={() => { void requestNotifyPermission(); report(base.startJob(r.id, 999)) }}>
                   Cocinar máx
                 </button>
               </div>
@@ -153,7 +158,7 @@ export default function HqPanel({ onClose }: { onClose: () => void }) {
       {candidates.map(({ p }) => (
         <div key={p.id} className="flex items-center gap-2">
           <span className="flex-1 font-bold truncate">{p.name ?? POI_KINDS[p.kind].label}</span>
-          <button className={btn} onClick={() => report(base.hireDealer(p))}>
+          <button className={btn} onClick={() => report(base.hireDealer(p), 'level')}>
             Contratar ${DEALER_HIRE_COST}
           </button>
         </div>
@@ -172,7 +177,7 @@ export default function HqPanel({ onClose }: { onClose: () => void }) {
               <p className="font-black leading-tight">{UPGRADE_INFO[k].label}</p>
               <p className="text-xs font-bold opacity-70">Nivel {level}/{MAX_LEVEL}</p>
             </div>
-            <button className={btn} disabled={max} onClick={() => report(base.upgrade(k))}>
+            <button className={btn} disabled={max} onClick={() => report(base.upgrade(k), 'level')}>
               {max ? 'Máx' : `$${UPGRADE_INFO[k].costs[level]}`}
             </button>
           </div>

@@ -34,7 +34,7 @@ export const businessCost = (owned: number): number => BUSINESS_BASE_COST * (own
 export const HQ_MOVE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000
 
 /** Dinero limpio con el que empieza el jugador (para comprar el primer negocio tapadera) */
-export const START_CLEAN_CASH = 250
+export const START_CLEAN_CASH = 350
 
 // --- Idle ---
 /** Un camello vende 1 unidad cada tanto */

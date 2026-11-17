@@ -5,6 +5,7 @@ import { POI_KINDS } from '../data/poiKinds'
 import { useInventoryStore } from '../store/inventoryStore'
 import { useBaseStore } from '../store/baseStore'
 import { businessCost, purityMult } from '../data/buildings'
+import { play } from '../services/sound'
 import { carried, dailyRemaining, offersFor, unitPrice } from '../services/tradeEngine'
 
 interface Props {
@@ -33,6 +34,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
   const act = (mode: 'buy' | 'sell', item: ItemId, qty: number): void => {
     const r = trade(mode, poi, item, qty, mode === 'sell' ? mult : 1)
     if (r.ok && mode === 'sell') useBaseStore.getState().addSaleReputation(item, r.qty)
+    play(r.ok ? mode : 'error')
     setNotice(
       r.ok
         ? `${mode === 'buy' ? 'Comprado' : 'Vendido'}: ${r.qty} × ${ITEMS[item].label} por $${r.total}`
@@ -100,6 +102,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
                   disabled={blocked}
                   onClick={() => {
                     const r = useBaseStore.getState().buyBusiness(poi)
+                    play(r.ok ? 'level' : 'error')
                     setNotice(r.ok ? r.message : r.reason)
                   }}
                 >
