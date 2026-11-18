@@ -53,27 +53,55 @@ function haversine(a: { lat: number; lng: number }, b: { lat: number; lng: numbe
   return 2 * 6_371_000 * Math.asin(Math.sqrt(h))
 }
 
-// Determinista: con nombre primero, luego más importante, luego por id; separación mínima por tipo
+// Determinista: reparto por rondas de tipos, cada elegido el más alejado de todos los ya elegidos;
+// a igual lejanía, con nombre primero, luego más importante, luego por id; separación mínima por tipo
+const SPREAD_STEP_M = 25
+
+const byPriority = (a: Candidate, b: Candidate): number =>
+  Number(b.poi.name !== null) - Number(a.poi.name !== null) ||
+  a.rank - b.rank ||
+  (a.poi.id < b.poi.id ? -1 : a.poi.id > b.poi.id ? 1 : 0)
+
 function selectPois(candidates: Candidate[]): Poi[] {
   const byKind = new Map<Kind, Candidate[]>()
   for (const c of candidates) byKind.set(c.poi.kind, [...(byKind.get(c.poi.kind) ?? []), c])
-  const out: Poi[] = []
-  for (const [kind, list] of byKind) {
-    list.sort(
-      (a, b) =>
-        Number(b.poi.name !== null) - Number(a.poi.name !== null) ||
-        a.rank - b.rank ||
-        (a.poi.id < b.poi.id ? -1 : a.poi.id > b.poi.id ? 1 : 0),
-    )
-    const chosen: Poi[] = []
-    for (const { poi } of list) {
-      if (chosen.length >= MAX_PER_KIND[kind]) break
-      if (chosen.some((c) => haversine(c, poi) < MIN_SEPARATION_M)) continue
-      chosen.push(poi)
+  const kinds = [...byKind.keys()].sort(
+    (a, b) => (byKind.get(a)?.length ?? 0) - (byKind.get(b)?.length ?? 0) || (a < b ? -1 : 1),
+  )
+  for (const list of byKind.values()) list.sort(byPriority)
+
+  const chosen: Poi[] = []
+  const perKind = new Map<Kind, Poi[]>()
+  const done = new Set<Kind>()
+  while (done.size < kinds.length) {
+    for (const kind of kinds) {
+      if (done.has(kind)) continue
+      const mine = perKind.get(kind) ?? []
+      if (mine.length >= MAX_PER_KIND[kind]) {
+        done.add(kind)
+        continue
+      }
+      let best: Poi | null = null
+      let bestBucket = -1
+      for (const { poi } of byKind.get(kind) ?? []) {
+        if (mine.some((c) => haversine(c, poi) < MIN_SEPARATION_M)) continue
+        let nearest = Infinity
+        for (const c of chosen) nearest = Math.min(nearest, haversine(c, poi))
+        const bucket = Math.floor(nearest / SPREAD_STEP_M)
+        if (bucket > bestBucket) {
+          best = poi
+          bestBucket = bucket
+        }
+      }
+      if (!best) {
+        done.add(kind)
+        continue
+      }
+      chosen.push(best)
+      perKind.set(kind, [...mine, best])
     }
-    out.push(...chosen)
   }
-  return out
+  return chosen
 }
 
 const lngToTileX = (lng: number): number => Math.floor(((lng + 180) / 360) * 2 ** Z)

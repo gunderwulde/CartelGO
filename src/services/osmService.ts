@@ -12,8 +12,8 @@ const RING_CONCURRENCY = 3
 // Las celdas no caducan: una vez creadas se quedan para siempre (AGENTS §3 pide como mínimo 24 h).
 // Si algún día cambian las reglas de clasificación, se sube la versión de cacheKey para invalidarlas.
 
-// v3: POIs de teselas vectoriales (ids "vt/…") con límite por tipo y celda
-const cacheKey = (cell: string): string => `cartelgo:cell3:${H3_RES}:${cell}`
+// v4: POIs de teselas vectoriales (ids "vt/…") con límite por tipo y celda, repartidos por distancia y tipo
+const cacheKey = (cell: string): string => `cartelgo:cell4:${H3_RES}:${cell}`
 
 async function readCache(cell: string): Promise<CachedCell | undefined> {
   try {

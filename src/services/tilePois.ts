@@ -82,31 +82,62 @@ export interface Candidate {
   rank: number
 }
 
+/** Escalón (m) con el que se compara la distancia al POI más cercano: por debajo de esto manda la importancia */
+const SPREAD_STEP_M = 25
+
+const byPriority = (a: Candidate, b: Candidate): number =>
+  Number(b.poi.name !== null) - Number(a.poi.name !== null) ||
+  a.rank - b.rank ||
+  (a.poi.id < b.poi.id ? -1 : a.poi.id > b.poi.id ? 1 : 0)
+
 /**
- * Elige de forma determinista qué POIs se quedan: primero los que tienen nombre, luego los más importantes,
- * y se descartan los que quedan a menos de MIN_SEPARATION_M de otro ya elegido del mismo tipo.
- * El resultado no depende del orden de entrada, así servidor y móvil obtienen lo mismo.
+ * Elige de forma determinista qué POIs se quedan, repartidos por la celda y mezclando tipos:
+ * se reparte por rondas (un POI por tipo en cada ronda, empezando por el tipo con menos candidatos) y cada
+ * elegido es el más alejado de TODOS los ya elegidos (de cualquier tipo), así no se amontonan en la zona densa
+ * y no quedan huecos grandes sin ningún POI. A igual lejanía gana el que tiene nombre, luego el más importante.
+ * Dentro de un mismo tipo se exige MIN_SEPARATION_M. El resultado no depende del orden de entrada,
+ * así servidor y móvil obtienen lo mismo.
  */
 export function selectPois(candidates: Candidate[]): Poi[] {
   const byKind = new Map<PoiKind, Candidate[]>()
   for (const c of candidates) byKind.set(c.poi.kind, [...(byKind.get(c.poi.kind) ?? []), c])
-  const out: Poi[] = []
-  for (const [kind, list] of byKind) {
-    list.sort(
-      (a, b) =>
-        Number(b.poi.name !== null) - Number(a.poi.name !== null) ||
-        a.rank - b.rank ||
-        (a.poi.id < b.poi.id ? -1 : a.poi.id > b.poi.id ? 1 : 0),
-    )
-    const chosen: Poi[] = []
-    for (const { poi } of list) {
-      if (chosen.length >= MAX_PER_KIND[kind]) break
-      if (chosen.some((c) => haversine(c, poi) < MIN_SEPARATION_M)) continue
-      chosen.push(poi)
+  const kinds = [...byKind.keys()].sort(
+    (a, b) => (byKind.get(a)?.length ?? 0) - (byKind.get(b)?.length ?? 0) || (a < b ? -1 : 1),
+  )
+  for (const list of byKind.values()) list.sort(byPriority)
+
+  const chosen: Poi[] = []
+  const perKind = new Map<PoiKind, Poi[]>()
+  const done = new Set<PoiKind>()
+  while (done.size < kinds.length) {
+    for (const kind of kinds) {
+      if (done.has(kind)) continue
+      const mine = perKind.get(kind) ?? []
+      if (mine.length >= MAX_PER_KIND[kind]) {
+        done.add(kind)
+        continue
+      }
+      let best: Poi | null = null
+      let bestBucket = -1
+      for (const { poi } of byKind.get(kind) ?? []) {
+        if (mine.some((c) => haversine(c, poi) < MIN_SEPARATION_M)) continue
+        let nearest = Infinity
+        for (const c of chosen) nearest = Math.min(nearest, haversine(c, poi))
+        const bucket = Math.floor(nearest / SPREAD_STEP_M)
+        if (bucket > bestBucket) {
+          best = poi
+          bestBucket = bucket
+        }
+      }
+      if (!best) {
+        done.add(kind)
+        continue
+      }
+      chosen.push(best)
+      perKind.set(kind, [...mine, best])
     }
-    out.push(...chosen)
   }
-  return out
+  return chosen
 }
 
 /** Extrae los candidatos de una tesela que caen dentro de alguna de las celdas pedidas. */

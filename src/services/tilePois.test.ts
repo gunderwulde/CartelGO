@@ -57,6 +57,28 @@ describe('selectPois (límite por celda)', () => {
     expect(out.filter((p) => p.kind === 'nightlife')).toHaveLength(MAX_PER_KIND.nightlife)
     expect(out.filter((p) => p.kind === 'pharmacy')).toHaveLength(MAX_PER_KIND.pharmacy)
   })
+
+  it('reparte por distancia: no se queda solo con la zona densa', () => {
+    // 60 bares apiñados (separados ~90 m) y 4 bares aislados, a más de 2 km
+    const dense = Array.from({ length: 60 }, (_, i) => cand(`d${i}`, 'nightlife', i, 'x', 1))
+    const far = Array.from({ length: 4 }, (_, i) => cand(`far${i}`, 'nightlife', 40 + i * 12, 'x', 9))
+    const ids = selectPois([...dense, ...far]).map((p) => p.id)
+    expect(ids.filter((id) => id.startsWith('far')).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('mezcla tipos: ningún tipo acapara el centro', () => {
+    const mix = [
+      ...Array.from({ length: 30 }, (_, i) => cand(`b${i}`, 'nightlife', i * 2)),
+      ...Array.from({ length: 30 }, (_, i) => cand(`f${i}`, 'pharmacy', i * 2 + 1)),
+    ]
+    const out = selectPois(mix)
+    const minGap = (kind: PoiKind): number => {
+      const same = out.filter((p) => p.kind === kind)
+      return Math.max(...same.map((p) => Math.min(...out.filter((q) => q !== p).map((q) => haversine(p, q)))))
+    }
+    expect(minGap('nightlife')).toBeGreaterThan(MIN_SEPARATION_M)
+    expect(minGap('pharmacy')).toBeGreaterThan(MIN_SEPARATION_M)
+  })
 })
 
 describe('classifyPoi', () => {
