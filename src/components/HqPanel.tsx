@@ -153,7 +153,7 @@ export default function HqPanel({ onClose }: { onClose: () => void }) {
       ))}
       <p className="text-sm font-black mt-2">Lugares que ya conoces</p>
       {candidates.length === 0 && (
-        <p className="text-xs font-bold">Visita parques y bares (a menos de 50 m) para poder asignarles un camello.</p>
+        <p className="text-xs font-bold">Visita parques y bares (a menos de 150 m) para poder asignarles un camello.</p>
       )}
       {candidates.map(({ p }) => (
         <div key={p.id} className="flex items-center gap-2">
