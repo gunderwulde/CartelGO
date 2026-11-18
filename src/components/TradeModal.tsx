@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import type { Poi } from '../types/poi'
 import { ITEMS, type ItemId } from '../data/items'
 import { POI_KINDS } from '../data/poiKinds'
+import { PoiBadge } from './PoiBadge'
 import { useInventoryStore } from '../store/inventoryStore'
 import { useBaseStore } from '../store/baseStore'
 import { businessCost, purityMult } from '../data/buildings'
@@ -66,7 +67,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 max-h-[70%] overflow-y-auto cartoon-card rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="flex items-start gap-2 mb-3">
-        <span className="w-5 h-5 mt-1 rounded-full border-2 border-black shrink-0" style={{ background: info.color }} />
+        <PoiBadge kind={poi.kind} size={36} />
         <div className="flex-1 min-w-0">
           <p className="font-black text-lg leading-tight truncate">{poi.name ?? info.label}</p>
           <p className="text-xs font-bold opacity-70">

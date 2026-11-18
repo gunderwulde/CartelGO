@@ -1,7 +1,8 @@
 import type { Map as MlMap, GeoJSONSource } from 'maplibre-gl'
 import type { Feature, FeatureCollection, Point, Polygon } from 'geojson'
 import type { Poi } from '../types/poi'
-import { POI_KINDS, POLICE_INFLUENCE_RADIUS_M } from '../data/poiKinds'
+import { POLICE_INFLUENCE_RADIUS_M } from '../data/poiKinds'
+import { registerPoiIcons } from './poiIcons'
 
 const POI_SOURCE = 'pois'
 const POLICE_SOURCE = 'police-zones'
@@ -36,20 +37,19 @@ export function addPoiLayers(map: MlMap): void {
   })
 
   map.addSource(POI_SOURCE, { type: 'geojson', data: empty<Point>() })
-  const colorMatch: unknown[] = ['match', ['get', 'kind']]
-  for (const [kind, info] of Object.entries(POI_KINDS)) colorMatch.push(kind, info.color)
-  colorMatch.push('#999999')
   map.addLayer({
-    id: 'poi-circles',
-    type: 'circle',
+    id: 'poi-icons',
+    type: 'symbol',
     source: POI_SOURCE,
-    paint: {
-      'circle-color': colorMatch as never,
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 5, 17, 11] as never,
-      'circle-stroke-color': '#111111',
-      'circle-stroke-width': 3,
+    layout: {
+      'icon-image': ['concat', 'poi-', ['get', 'kind']],
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 13, 0.5, 16, 0.8, 18, 1],
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
     },
   })
+  // Las insignias se dibujan en un canvas (async); la capa las muestra en cuanto estén registradas
+  void registerPoiIcons(map)
 }
 
 /** Vuelca los POIs al mapa. */

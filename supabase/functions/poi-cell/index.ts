@@ -9,7 +9,6 @@ import { cellToBoundary, isValidCell, getResolution, latLngToCell } from 'npm:h3
 
 const H3_RES = 8
 const Z = 14
-const TTL_MS = 14 * 24 * 60 * 60 * 1000 // OSM cambia despacio
 const TILEJSON_URL = 'https://tiles.openfreemap.org/planet'
 const TILE_TIMEOUT_MS = 15_000
 
@@ -141,7 +140,7 @@ Deno.serve(async (req) => {
 
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const { data: row } = await db.from('poi_cells').select('fetched_at,pois').eq('cell', cell).maybeSingle()
-  if (row && Date.now() - new Date(row.fetched_at).getTime() < TTL_MS) return json(row)
+  if (row) return json(row) // las celdas no caducan
 
   let job = inflight.get(cell)
   if (!job) {
@@ -157,8 +156,6 @@ Deno.serve(async (req) => {
   try {
     return json(await job)
   } catch (e) {
-    // Si las teselas fallan pero había datos caducados, es mejor servirlos que nada
-    if (row) return json({ ...row, stale: true })
     return json({ error: e instanceof Error ? e.message : 'No se pudieron leer las teselas' }, 502)
   }
 })

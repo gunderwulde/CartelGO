@@ -1,6 +1,6 @@
 # Supabase - caché compartida de POIs
 
-El cliente lee la tabla `poi_cells` directamente. Si una celda falta o tiene más de 14 días, llama a la función `poi-cell`, que lee las teselas vectoriales de OpenFreeMap (datos de OSM, las mismas del mapa), guarda el resultado y lo devuelve. Sin configurar nada, el juego lee las teselas directamente desde el móvil.
+Las celdas no caducan: una vez creadas no se vuelven a pedir. El cliente lee la tabla `poi_cells` directamente. Si una celda falta, llama a la función `poi-cell`, que lee las teselas vectoriales de OpenFreeMap (datos de OSM, las mismas del mapa), guarda el resultado y lo devuelve. Sin configurar nada, el juego lee las teselas directamente desde el móvil.
 
 ## Puesta en marcha (una vez)
 

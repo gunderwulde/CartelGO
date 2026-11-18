@@ -3,6 +3,7 @@ import type { GpsStatus } from '../types'
 import type { Poi } from '../types/poi'
 import type { PoiLoadStatus } from '../store/mapStore'
 import { POI_KINDS } from '../data/poiKinds'
+import { PoiBadge } from './PoiBadge'
 import { setMuted, useMuted } from '../services/sound'
 
 const STATUS_TEXT: Record<GpsStatus, string> = {
@@ -118,7 +119,7 @@ export function NearbyPois({ pois, onSelect }: { pois: Poi[]; onSelect: (p: Poi)
     <div className="absolute inset-x-3 bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+5.5rem))] mx-auto max-w-sm cartoon-card p-2 flex flex-col gap-1">
       {pois.slice(0, 3).map((p) => (
         <button key={p.id} className="flex items-center gap-2 text-sm font-black text-left" onClick={() => onSelect(p)}>
-          <span className="w-4 h-4 rounded-full border-2 border-black shrink-0" style={{ background: POI_KINDS[p.kind].color }} />
+          <PoiBadge kind={p.kind} size={30} />
           <span className="truncate">{p.name ?? POI_KINDS[p.kind].label}</span>
           <span className="ml-auto text-xs font-bold opacity-70 shrink-0">{POI_KINDS[p.kind].label}</span>
         </button>

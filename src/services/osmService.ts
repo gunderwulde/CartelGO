@@ -9,10 +9,8 @@ import { fetchCellPoisFromTiles } from './tilePois'
 export const H3_RES = 8
 /** Celdas del anillo que se piden a la vez */
 const RING_CONCURRENCY = 3
-/** AGENTS.md: cachear al menos 24 h. */
-export const CACHE_TTL_MS = 24 * 60 * 60 * 1000
-/** Una celda de la caché compartida se considera fresca este tiempo (la función usa el mismo) */
-const SHARED_FRESH_MS = 14 * 24 * 60 * 60 * 1000
+// Las celdas no caducan: una vez creadas se quedan para siempre (AGENTS §3 pide como mínimo 24 h).
+// Si algún día cambian las reglas de clasificación, se sube la versión de cacheKey para invalidarlas.
 
 // v2: los POIs vienen de teselas vectoriales (ids "vt/…"), no de Overpass
 const cacheKey = (cell: string): string => `cartelgo:cell2:${H3_RES}:${cell}`
@@ -46,10 +44,8 @@ export function cellsAround(pos: LatLng): string[] {
 async function fetchFromNetwork(cell: string): Promise<Poi[]> {
   if (sharedCacheEnabled) {
     try {
-      let shared: SharedCell | null = await readSharedCell(cell)
-      if (shared && Date.now() - shared.fetchedAt < SHARED_FRESH_MS) return shared.pois
-      shared = (await fillSharedCell(cell).catch(() => null)) ?? shared
-      if (shared) return shared.pois // si la función falló, queda lo caducado
+      const shared: SharedCell | null = (await readSharedCell(cell)) ?? (await fillSharedCell(cell).catch(() => null))
+      if (shared) return shared.pois
     } catch {
       /* Supabase caído: seguimos con las teselas */
     }
@@ -60,26 +56,22 @@ async function fetchFromNetwork(cell: string): Promise<Poi[]> {
 export interface LoadResult {
   /** Celdas que no se pudieron refrescar (se reintentarán más tarde) */
   failedCells: string[]
-  /** Se usaron datos caducados de la caché porque la red falló */
-  stale: boolean
 }
 
 /**
- * Carga los POIs de las celdas cercanas de forma progresiva: lo cacheado sale al instante, la celda
+ * Carga los POIs de las celdas cercanas de forma progresiva: lo cacheado sale al instante y no se vuelve a pedir, la celda
  * del jugador se pide primero y el anillo después. Cada celda se entrega con `onPois` en cuanto está.
- * Solo lanza error si la celda del jugador no tiene ningún dato (ni fresco ni caducado).
+ * Solo lanza error si la celda del jugador no tiene ningún dato (ni en caché ni en la red).
  */
 export async function loadPoisAround(
   pos: LatLng,
   onPois: (pois: Poi[]) => void,
-  now = Date.now(),
 ): Promise<LoadResult> {
   const cells = cellsAround(pos)
   const [center] = cells
   const toFetch: string[] = []
   const failed = new Set<string>()
   const haveData = new Set<string>()
-  let stale = false
 
   // 1) Caché primero: fresca o caducada, lo que haya, para pintar ya
   for (const c of cells) {
@@ -88,7 +80,7 @@ export async function loadPoisAround(
       onPois(cached.pois)
       haveData.add(c)
     }
-    if (!cached || now - cached.fetchedAt >= CACHE_TTL_MS) toFetch.push(c)
+    if (!cached) toFetch.push(c)
   }
 
   // 2) Red: solo lo que falta o caducó (AGENTS §3: nunca en cada lectura de GPS)
@@ -101,7 +93,6 @@ export async function loadPoisAround(
       failed.delete(c)
     } catch {
       failed.add(c)
-      if (haveData.has(c)) stale = true
     }
   }
 
@@ -113,5 +104,5 @@ export async function loadPoisAround(
   await Promise.all(Array.from({ length: RING_CONCURRENCY }, worker))
 
   if (!haveData.has(center)) throw new Error('Sin datos del barrio')
-  return { failedCells: [...failed], stale }
+  return { failedCells: [...failed] }
 }
