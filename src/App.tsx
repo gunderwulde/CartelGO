@@ -9,6 +9,9 @@ import { usePois } from './services/usePois'
 import { useIdle } from './services/useIdle'
 import { useBaseStore } from './store/baseStore'
 import HqPanel from './components/HqPanel'
+import AccountPanel, { CloudConflict } from './components/AccountPanel'
+import { useAccountStore } from './store/accountStore'
+import { useCloudSync } from './services/useCloudSync'
 import { useHeat } from './services/useHeat'
 import { useSimulation } from './services/useSimulation'
 import { haversine, INTERACTION_RADIUS_M } from './services/geoService'
@@ -38,6 +41,8 @@ export default function App() {
   const [retry, setRetry] = useState(0)
   const [poiRetry, setPoiRetry] = useState(0)
   const [hqOpen, setHqOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const conflict = useAccountStore((s) => s.conflict)
   const hq = useBaseStore((s) => s.hq)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -57,6 +62,7 @@ export default function App() {
   usePois(started, poiRetry)
   useHeat(started)
   useIdle(started)
+  useCloudSync(started)
   useSimulation(started && simulation)
 
   const nearby = useMemo(() => {
@@ -134,8 +140,15 @@ export default function App() {
       {!selected && <NearbyPois pois={nearby} onSelect={(p) => setSelectedId(p.id)} />}
       {selected && <TradeModal poi={selected} blocked={driving} onClose={() => setSelectedId(null)} />}
       <Toast />
-      <BottomButtons follow={follow} onToggleFollow={() => setFollow((f) => !f)} onHq={() => setHqOpen(true)} />
+      <BottomButtons
+        follow={follow}
+        onToggleFollow={() => setFollow((f) => !f)}
+        onHq={() => setHqOpen(true)}
+        onAccount={() => setAccountOpen((o) => !o)}
+      />
       {hqOpen && <HqPanel onClose={() => setHqOpen(false)} />}
+      {accountOpen && <AccountPanel onClose={() => setAccountOpen(false)} />}
+      {conflict && <CloudConflict conflict={conflict} />}
     </div>
   )
 }

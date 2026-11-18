@@ -1,4 +1,6 @@
-import { Crosshair, House, Navigation, TriangleAlert, Volume2, VolumeX } from 'lucide-react'
+import { Cloud, CloudAlert, CloudCheck, CloudOff, Crosshair, House, Navigation, TriangleAlert, Volume2, VolumeX } from 'lucide-react'
+import { useAccountStore } from '../store/accountStore'
+import { backendEnabled } from '../services/supabaseClient'
 import type { GpsStatus } from '../types'
 import type { Poi } from '../types/poi'
 import type { PoiLoadStatus } from '../store/mapStore'
@@ -62,12 +64,25 @@ interface BottomProps {
   follow: boolean
   onToggleFollow: () => void
   onHq: () => void
+  onAccount: () => void
 }
 
-export function BottomButtons({ follow, onToggleFollow, onHq }: BottomProps) {
+export function BottomButtons({ follow, onToggleFollow, onHq, onAccount }: BottomProps) {
   const muted = useMuted()
+  const auth = useAccountStore((s) => s.auth)
+  const sync = useAccountStore((s) => s.sync)
+  const CloudIcon = auth !== 'in' ? Cloud : sync === 'ok' ? CloudCheck : sync === 'error' ? CloudAlert : sync === 'offline' ? CloudOff : Cloud
   return (
     <div className="absolute right-3 bottom-[max(1rem,env(safe-area-inset-bottom))] flex flex-col gap-3">
+      {backendEnabled && (
+        <button
+          className="cartoon-btn w-14 h-14 flex items-center justify-center bg-white!"
+          onClick={onAccount}
+          aria-label="Partida en la nube"
+        >
+          <CloudIcon />
+        </button>
+      )}
       <button
         className="cartoon-btn w-14 h-14 flex items-center justify-center bg-white!"
         onClick={() => setMuted(!muted)}

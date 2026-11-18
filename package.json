@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@mapbox/vector-tile": "^3.0.0",
+    "@supabase/supabase-js": "^2.119.0",
     "h3-js": "^4.5.0",
     "idb-keyval": "^6.3.0",
     "lucide-react": "^1.74.0",
