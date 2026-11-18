@@ -2,15 +2,14 @@ import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { del, get as idbGet, set as idbSet } from 'idb-keyval'
 import {
-  BACKPACK_CAPACITY,
   DEALER_BONUS_COST,
   DEALER_BONUS_HONESTY,
   DEALER_HIRE_COST,
   DEALER_SLOTS,
+  REFUND_SHARE,
   HQ_MOVE_COOLDOWN_MS,
   MAX_LEVEL,
   RECIPES,
-  REP_PER_UNIT,
   STORAGE_CAPACITY,
   UPGRADE_INFO,
   businessCost,
@@ -38,8 +37,11 @@ import {
   type Job,
 } from '../services/idleEngine'
 import { carried, type Inventory } from '../services/tradeEngine'
+import { AD_RESCUE_REWARD, canOfferAd } from '../services/adRescue'
+import { CALM_HEAT_COST, FAVORS_START, favorCost } from '../services/favors'
 import {
   advanceSupply,
+  dirtyFromClean,
   newCarrier,
   pending,
   planOrder,
@@ -62,7 +64,10 @@ export interface Hq extends LatLng {
   movedAt: number
 }
 
-export type ActionResult = { ok: true; message: string } | { ok: false; reason: string }
+export type ActionResult =
+  | { ok: true; message: string }
+  /** `confirm`: la acción pide permiso; si el jugador acepta, `accept()` la repite ya autorizada */
+  | { ok: false; reason: string; confirm?: { message: string; accept: () => ActionResult } }
 const fail = (reason: string): ActionResult => ({ ok: false, reason })
 const done = (message: string): ActionResult => ({ ok: true, message })
 
@@ -74,7 +79,6 @@ interface BaseState {
   hqLevel: number
   labLevel: number
   storageLevel: number
-  backpackLevel: number
   storage: Inventory
   job: Job | null
   dealers: Dealer[]
@@ -88,30 +92,71 @@ interface BaseState {
   reputation: number
   dealersAt: number
   launderAt: number
+  /** Última vez que se cobró un anuncio de rescate */
+  adAt: number
+  /** Favores: moneda para saltar esperas */
+  favors: number
 
   placeHq: (pos: LatLng) => ActionResult
-  transfer: (mode: 'deposit' | 'withdraw', item: ItemId, qty: number) => ActionResult
   startJob: (recipe: RecipeId, batches: number) => ActionResult
   hireDealer: (poi: VisitedPoi) => ActionResult
-  fireDealer: (id: string) => void
+  fireDealer: (id: string) => ActionResult
   bonusDealer: (id: string) => ActionResult
   buyBusiness: (poi: VisitedPoi) => ActionResult
   upgrade: (kind: UpgradeKind) => ActionResult
   establishContact: (poi: Poi) => ActionResult
   orderSupply: (poiId: string, item: ItemId, qty: number) => ActionResult
+  /** Cambia Dinero Limpio por Dinero Sucio (con comisión) */
+  makeDirty: (cleanAmount: number) => ActionResult
+  /** Cobra la recompensa del anuncio de rescate */
+  claimAdReward: () => ActionResult
+  grantFavors: (n: number) => void
+  /** Saltar esperas con Favores */
+  skipOrder: (poiId: string) => ActionResult
+  skipTrip: (carrierId: string) => ActionResult
+  skipBatch: () => ActionResult
+  calmHeat: () => ActionResult
   upgradeSupplier: (poiId: string) => ActionResult
   hireCarrier: () => ActionResult
   upgradeCarrier: (id: string) => ActionResult
   markVisited: (pois: Poi[]) => void
-  addSaleReputation: (item: ItemId, qty: number) => void
+  /** Redada: la policía se lleva una parte del almacén. Devuelve las unidades confiscadas */
+  seizeStock: (share: number) => number
   /** Avanza el idle hasta ahora (producción, camellos y blanqueo) */
   sync: () => void
 }
 
 const levelOf = (s: BaseState, kind: UpgradeKind): number =>
-  ({ hq: s.hqLevel, lab: s.labLevel, storage: s.storageLevel, backpack: s.backpackLevel })[kind]
+  ({ hq: s.hqLevel, lab: s.labLevel, storage: s.storageLevel })[kind]
 
 const DEALER_LOG_MAX = 40
+
+/** Tras aceptar el aviso del juego, la repetición de la acción pasa sin preguntar otra vez */
+let authorized = false
+
+/** Gastar Dinero Limpio sin negocio tapadera y sin llegar a comprar uno te deja sin forma de ganar limpio. Devuelve un aviso a confirmar, o null si se puede seguir. */
+function okToSpend(s: BaseState, cleanBefore: number, cost: number, retry: () => ActionResult): ActionResult | null {
+  if (authorized) {
+    authorized = false
+    return null
+  }
+  if (s.businesses.length > 0 || cleanBefore - cost >= businessCost(0)) return null
+  return {
+    ok: false,
+    reason: 'Compra pendiente de confirmar.',
+    confirm: {
+      message: `Si gastas $${cost} te quedarás sin los $${businessCost(0)} limpios para montar un negocio tapadera, y sin negocio no entra Dinero Limpio. ¿Seguro?`,
+      accept: () => {
+        authorized = true
+        try {
+          return retry()
+        } finally {
+          authorized = false
+        }
+      },
+    },
+  }
+}
 
 const newDealer = (poi: VisitedPoi): Dealer => {
   const id = `d${Date.now()}`
@@ -125,7 +170,7 @@ function reportDealers(events: DealerEvent[]): void {
   const cuts = events.filter((e) => e.kind === 'cut').length
   useInventoryStore
     .getState()
-    .setNotice(`Tus camellos te han quitado ${stolen}${cuts > 0 ? ` y han adulterado el producto ${cuts} vez/veces (¡más Heat!)` : ''}. Mira el informe en el HQ.`)
+    .setNotice(`Tus camellos te han quitado $${stolen} sucios${cuts > 0 ? ` y han adulterado el producto ${cuts} vez/veces (¡más Heat!)` : ''}. Mira el informe en el HQ.`)
 }
 
 export const storageCap = (level: number): number => STORAGE_CAPACITY[level - 1]
@@ -139,7 +184,6 @@ export const useBaseStore = create<BaseState>()(
       hqLevel: 1,
       labLevel: 1,
       storageLevel: 1,
-      backpackLevel: 1,
       storage: {},
       job: null,
       dealers: [],
@@ -151,6 +195,8 @@ export const useBaseStore = create<BaseState>()(
       reputation: 0,
       dealersAt: Date.now(),
       launderAt: Date.now(),
+      adAt: 0,
+      favors: FAVORS_START,
 
       placeHq: (pos) => {
         const { hq } = get()
@@ -161,27 +207,6 @@ export const useBaseStore = create<BaseState>()(
         }
         set({ hq: { lat: pos.lat, lng: pos.lng, movedAt: now } })
         return done('Cuartel General colocado.')
-      },
-
-      transfer: (mode, item, qty) => {
-        const s = get()
-        if (!isNearHq(s.hq, usePlayerStore.getState().position)) return fail('Tienes que estar junto al HQ.')
-        const inv = useInventoryStore.getState()
-        const from = mode === 'deposit' ? inv.inventory : s.storage
-        const toUsed = carried(mode === 'deposit' ? s.storage : inv.inventory)
-        const toCap = mode === 'deposit' ? storageCap(s.storageLevel) : inv.capacity
-        const n = Math.min(qty, from[item] ?? 0, toCap - toUsed)
-        if (n < 1) return fail((from[item] ?? 0) < 1 ? 'No hay nada que mover.' : 'No hay espacio.')
-        const take = (b: Inventory): Inventory => ({ ...b, [item]: (b[item] ?? 0) - n })
-        const give = (b: Inventory): Inventory => ({ ...b, [item]: (b[item] ?? 0) + n })
-        if (mode === 'deposit') {
-          useInventoryStore.setState({ inventory: take(inv.inventory) })
-          set({ storage: give(s.storage) })
-        } else {
-          set({ storage: take(s.storage) })
-          useInventoryStore.setState({ inventory: give(inv.inventory) })
-        }
-        return done(`${n} movidos.`)
       },
 
       startJob: (recipeId, batches) => {
@@ -213,6 +238,8 @@ export const useBaseStore = create<BaseState>()(
         if (!here || haversine(here, poi) > INTERACTION_RADIUS_M) return fail('Tienes que estar allí en persona para contratarlo.')
         if (s.dealers.length >= DEALER_SLOTS[s.hqLevel - 1]) return fail('No tienes más huecos. Mejora el HQ.')
         if (inv.cleanCash < DEALER_HIRE_COST) return fail(`Contratar cuesta $${DEALER_HIRE_COST} limpios.`)
+        const warn = okToSpend(s, inv.cleanCash, DEALER_HIRE_COST, () => get().hireDealer(poi))
+        if (warn) return warn
         useInventoryStore.setState({ cleanCash: inv.cleanCash - DEALER_HIRE_COST })
         set({
           dealers: [...s.dealers, newDealer(poi)],
@@ -220,7 +247,15 @@ export const useBaseStore = create<BaseState>()(
         })
         return done('Camello contratado.')
       },
-      fireDealer: (id) => set((s) => ({ dealers: s.dealers.filter((d) => d.id !== id) })),
+      fireDealer: (id) => {
+        const s = get()
+        if (!s.dealers.some((d) => d.id === id)) return fail('No existe ese camello.')
+        const refund = Math.floor(DEALER_HIRE_COST * REFUND_SHARE)
+        const inv = useInventoryStore.getState()
+        useInventoryStore.setState({ cleanCash: inv.cleanCash + refund })
+        set({ dealers: s.dealers.filter((d) => d.id !== id) })
+        return done(`Camello despedido. Te devuelve ${refund} limpios.`)
+      },
 
       bonusDealer: (id) => {
         const s = get()
@@ -256,17 +291,16 @@ export const useBaseStore = create<BaseState>()(
         if (level >= MAX_LEVEL) return fail('Ya está al máximo.')
         if (kind !== 'hq' && level >= s.hqLevel) return fail('Mejora antes el Cuartel General.')
         const cost = UPGRADE_INFO[kind].costs[level]
-        if (inv.cleanCash < cost) return fail(`Cuesta $${cost} limpios.`)
+        if (inv.cleanCash < cost) return fail(`Cuesta ${cost} limpios.`)
+        const warn = okToSpend(s, inv.cleanCash, cost, () => get().upgrade(kind))
+        if (warn) return warn
         useInventoryStore.setState({ cleanCash: inv.cleanCash - cost })
-        if (kind === 'backpack') useInventoryStore.setState({ capacity: BACKPACK_CAPACITY[level] })
         set(
           kind === 'hq'
             ? { hqLevel: level + 1 }
             : kind === 'lab'
               ? { labLevel: level + 1 }
-              : kind === 'storage'
-                ? { storageLevel: level + 1 }
-                : { backpackLevel: level + 1 },
+              : { storageLevel: level + 1 },
         )
         return done(`${UPGRADE_INFO[kind].label} al nivel ${level + 1}.`)
       },
@@ -280,6 +314,77 @@ export const useBaseStore = create<BaseState>()(
         const { id, kind, name, lat, lng } = poi
         set({ suppliers: { ...s.suppliers, [id]: { poi: { id, kind, name, lat, lng }, level: 1, order: null } } })
         return done('Contacto establecido. Ya puedes pedirle mercancía desde el HQ.')
+      },
+
+      grantFavors: (n) => set((s) => ({ favors: s.favors + n })),
+
+      skipOrder: (poiId) => {
+        get().sync()
+        const s = get()
+        const now = Date.now()
+        const sup = s.suppliers[poiId]
+        if (!sup?.order || sup.order.readyAt <= now) return fail('No hay nada que adelantar.')
+        const cost = favorCost(sup.order.readyAt - now)
+        if (s.favors < cost) return fail(`Necesitas ${cost} favores.`)
+        set({ favors: s.favors - cost, suppliers: { ...s.suppliers, [poiId]: { ...sup, order: { ...sup.order, readyAt: now } } } })
+        get().sync()
+        return done(`Pedido listo al instante (-${cost} favores).`)
+      },
+
+      skipTrip: (carrierId) => {
+        get().sync()
+        const s = get()
+        const now = Date.now()
+        const c = s.carriers.find((x) => x.id === carrierId)
+        if (!c?.trip || c.trip.arriveAt <= now) return fail('No hay ningún viaje que acelerar.')
+        const cost = favorCost(c.trip.arriveAt - now)
+        if (s.favors < cost) return fail(`Necesitas ${cost} favores.`)
+        set({ favors: s.favors - cost, carriers: s.carriers.map((x) => (x.id === carrierId && x.trip ? { ...x, trip: { ...x.trip, arriveAt: now } } : x)) })
+        get().sync()
+        return done(`Transportista llegado al instante (-${cost} favores).`)
+      },
+
+      skipBatch: () => {
+        get().sync()
+        const s = get()
+        const now = Date.now()
+        if (!s.job || s.job.nextAt <= now) return fail('No hay ningún lote en marcha.')
+        const cost = favorCost(s.job.nextAt - now)
+        if (s.favors < cost) return fail(`Necesitas ${cost} favores.`)
+        set({ favors: s.favors - cost, job: { ...s.job, nextAt: now } })
+        get().sync()
+        return done(`Lote terminado al instante (-${cost} favores).`)
+      },
+
+      calmHeat: () => {
+        const s = get()
+        const inv = useInventoryStore.getState()
+        if (inv.heat <= 0) return fail('La policía no te busca.')
+        if (s.favors < CALM_HEAT_COST) return fail(`Necesitas ${CALM_HEAT_COST} favores.`)
+        useInventoryStore.setState({ heat: 0 })
+        set({ favors: s.favors - CALM_HEAT_COST })
+        return done(`Un amigo en comisaría despista a la poli (-${CALM_HEAT_COST} favores).`)
+      },
+
+      claimAdReward: () => {
+        const inv = useInventoryStore.getState()
+        const now = Date.now()
+        if (!canOfferAd(inv.dirtyCash, inv.cleanCash, get().adAt, now)) return fail('Ahora no hay recompensa disponible.')
+        useInventoryStore.setState({ dirtyCash: inv.dirtyCash + AD_RESCUE_REWARD })
+        set({ adAt: now })
+        return done(`Patrocinador generoso: +${AD_RESCUE_REWARD} sucios.`)
+      },
+
+      makeDirty: (cleanAmount) => {
+        const s = get()
+        const inv = useInventoryStore.getState()
+        if (cleanAmount < 1) return fail('Indica una cantidad.')
+        if (inv.cleanCash < cleanAmount) return fail(`No tienes ${cleanAmount} limpios.`)
+        const warn = okToSpend(s, inv.cleanCash, cleanAmount, () => get().makeDirty(cleanAmount))
+        if (warn) return warn
+        const dirty = dirtyFromClean(cleanAmount)
+        useInventoryStore.setState({ cleanCash: inv.cleanCash - cleanAmount, dirtyCash: inv.dirtyCash + dirty })
+        return done(`Ensuciados ${cleanAmount} limpios: te dan ${dirty} sucios.`)
       },
 
       orderSupply: (poiId, item, qty) => {
@@ -309,6 +414,8 @@ export const useBaseStore = create<BaseState>()(
         const cost = supplierUpgradeCost(supplier.level, remote)
         if (cost === null) return fail('Ya está al máximo.')
         if (inv.cleanCash < cost) return fail(`Cuesta ${cost} limpios${remote ? ' por teléfono' : ''}.`)
+        const warn = okToSpend(s, inv.cleanCash, cost, () => get().upgradeSupplier(poiId))
+        if (warn) return warn
         useInventoryStore.setState({ cleanCash: inv.cleanCash - cost })
         set({ suppliers: { ...s.suppliers, [poiId]: { ...supplier, level: supplier.level + 1 } } })
         return done(`Proveedor al nivel ${supplier.level + 1}${remote ? ' (negociado por teléfono)' : ''}.`)
@@ -319,6 +426,8 @@ export const useBaseStore = create<BaseState>()(
         const inv = useInventoryStore.getState()
         if (s.carriers.length >= CARRIER_SLOTS[s.hqLevel - 1]) return fail('No tienes más huecos. Mejora el HQ.')
         if (inv.cleanCash < CARRIER_HIRE_COST) return fail(`Contratar cuesta ${CARRIER_HIRE_COST} limpios.`)
+        const warn = okToSpend(s, inv.cleanCash, CARRIER_HIRE_COST, () => get().hireCarrier())
+        if (warn) return warn
         useInventoryStore.setState({ cleanCash: inv.cleanCash - CARRIER_HIRE_COST })
         set({ carriers: [...s.carriers, newCarrier(`t${Date.now()}`, Date.now())] })
         return done('Transportista contratado.')
@@ -332,6 +441,8 @@ export const useBaseStore = create<BaseState>()(
         if (c.level >= SUPPLY_MAX_LEVEL) return fail('Ya está al máximo.')
         const cost = CARRIER_UPGRADE_COSTS[c.level]
         if (inv.cleanCash < cost) return fail(`Cuesta ${cost} limpios.`)
+        const warn = okToSpend(s, inv.cleanCash, cost, () => get().upgradeCarrier(id))
+        if (warn) return warn
         useInventoryStore.setState({ cleanCash: inv.cleanCash - cost })
         set({ carriers: s.carriers.map((x) => (x.id === id ? { ...x, level: x.level + 1 } : x)) })
         return done(`Transportista al nivel ${c.level + 1}.`)
@@ -346,9 +457,17 @@ export const useBaseStore = create<BaseState>()(
         set({ visited: next })
       },
 
-      addSaleReputation: (item, qty) => {
-        const gain = REP_PER_UNIT[item] * qty
-        if (gain > 0) set((s) => ({ reputation: s.reputation + gain }))
+      seizeStock: (share) => {
+        const s = get()
+        const next: Inventory = {}
+        let seized = 0
+        for (const [item, n] of Object.entries(s.storage) as [ItemId, number][]) {
+          const take = Math.floor((n ?? 0) * share)
+          seized += take
+          next[item] = (n ?? 0) - take
+        }
+        if (seized > 0) set({ storage: next })
+        return seized
       },
 
       sync: () => {

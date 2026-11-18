@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { usePlayerStore } from '../store/playerStore'
 import { useMapStore } from '../store/mapStore'
 import { useInventoryStore } from '../store/inventoryStore'
+import { useBaseStore } from '../store/baseStore'
+import { RAID_SEIZE_SHARE } from '../data/balance'
 import { haversine } from './geoService'
 import { isBusted, nextHeat } from './heatEngine'
 import { POLICE_INFLUENCE_RADIUS_M } from '../data/poiKinds'
@@ -27,7 +29,14 @@ export function useHeat(enabled: boolean): void {
       )
       const store = useInventoryStore.getState()
       const heat = nextHeat(store.heat, inZone, dt)
-      if (isBusted(heat)) store.raid()
+      if (isBusted(heat)) {
+        const seized = useBaseStore.getState().seizeStock(RAID_SEIZE_SHARE)
+        store.raid(
+          seized > 0
+            ? `¡Redada! La policía se ha llevado ${seized} unidades de tu almacén.`
+            : '¡Redada! Por suerte no había nada que llevarse.',
+        )
+      }
       else if (heat !== store.heat) store.setHeat(heat)
     })
   }, [enabled])

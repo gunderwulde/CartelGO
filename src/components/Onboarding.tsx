@@ -48,7 +48,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
           <span key={n} className={`w-3 h-3 rounded-full border-2 border-black ${n === i ? 'bg-black' : 'bg-white'}`} />
         ))}
       </div>
-      <button className="cartoon-btn px-8 py-3 text-xl" onClick={() => (last ? onDone() : setI(i + 1))}>
+      <button className="cartoon-btn px-8 py-3 text-lg" onClick={() => (last ? onDone() : setI(i + 1))}>
         {last ? '¡A la calle!' : 'Siguiente'}
       </button>
     </div>

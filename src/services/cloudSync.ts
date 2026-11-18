@@ -73,18 +73,14 @@ export function exportSave(): SaveBlob {
   return {
     v: 1,
     inventory: {
-      inventory: inv.inventory,
       dirtyCash: inv.dirtyCash,
       cleanCash: inv.cleanCash,
-      capacity: inv.capacity,
-      limits: inv.limits,
       heat: inv.heat,
     },
     base: {
       hqLevel: b.hqLevel,
       labLevel: b.labLevel,
       storageLevel: b.storageLevel,
-      backpackLevel: b.backpackLevel,
       storage: b.storage,
       job: b.job,
       dealers: b.dealers,
@@ -107,7 +103,7 @@ const hqCell = (): string | null => {
 
 /** Sustituye la partida local. El HQ local (si existe) se conserva: la nube nunca lo trae. */
 function applySave(blob: SaveBlob): void {
-  useInventoryStore.setState({ ...blob.inventory })
+  useInventoryStore.setState({ dirtyCash: blob.inventory.dirtyCash, cleanCash: blob.inventory.cleanCash, heat: blob.inventory.heat ?? 0 })
   // Las partidas anteriores al Sprint 7 no traen la cadena de suministro
   useBaseStore.setState({ suppliers: {}, carriers: [], dealerLog: [], ...blob.base })
 }

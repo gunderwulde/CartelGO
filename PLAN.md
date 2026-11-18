@@ -71,7 +71,7 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 
 - [x] `data/`: catálogo de precursores, productos (Hierba Risona, Cristal Azul, Polvo Estelar → nombres ficticios, ver AGENTS §3), precios. Sin laboratorio aún, el jugador empieza con 10 Hierba Risona para poder probar la venta.
 - [x] Stores Zustand: `playerStore`, `inventoryStore`, `mapStore`.
-- [x] Inventario con capacidad de mochila.
+- [x] Inventario con capacidad de mochila. *(Retirado: sin mochila ni venta a mano; la policía confisca un 30 % del almacén en las redadas.)*
 - [x] Interacción a < 50 m: comprar precursores (industrial/farmacia, con límite diario) y vender (parque, bares con x2 de 20:00 a 04:00).
 - [x] Medidor de Heat por cercanía a comisarías; al 100 % se pierde la mercancía.
 - [x] Persistencia del progreso en IndexedDB (offline-first, `zustand/persist` + `idb-keyval`).
@@ -129,6 +129,21 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 - [x] Ficha por camello (ventas, cobrado, perdido, fiabilidad revelada tras 20 ventas) e informe de sucesos en el HQ.
 - [x] Prima (Dinero Sucio) para subir fiabilidad y despedir camellos. Los camellos dan el 25 % de la reputación.
 - [x] Guardado local y en la nube (campos opcionales). Tests del motor.
+
+---
+
+## Sprint 9 - Red de seguridad económica (GDD §4 quinquies)
+
+- [x] Ensuciar dinero: cambiar Dinero Limpio por Sucio en el HQ con comisión del 50 % (los pedidos se pagan siempre con sucio).
+- [x] Reembolso del 50 % (limpio) al despedir un camello.
+- [x] Aviso antes de una compra que te deja sin dinero para el primer negocio.
+- [x] Anuncio de rescate (hueco de prueba, 20 s, $100 sucios, espera de 5 min) cuando te quedas sin dinero.
+- [x] Tutorial de primeros pasos: tarjeta con el siguiente objetivo (transportista, contacto, pedido, cocinar, camello, negocio) que avanza sola; se puede saltar.
+- [x] Favores: tercera moneda para saltar esperas (pedidos, viajes, lotes, Heat) + panel de pruebas `?dev`.
+- [ ] Más fuentes de Favores: hitos de reputación, premio diario y anuncios con recompensa.
+- [ ] Conectar una red de anuncios real (con recompensa) en el lanzamiento: dominio propio, consentimiento y política de privacidad.
+- [ ] Valorar coste de Heat o límite diario al ensuciar dinero, y reembolso al vender/despedir otras piezas (transportistas, negocios).
+- [ ] Rebalancear: reputación de camellos 10 %, más riesgo de robo y sumideros de dinero (ver simulación en el chat).
 
 ---
 

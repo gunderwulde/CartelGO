@@ -1,11 +1,13 @@
 import {
   CARRIER_LEVELS,
+  DIRTY_EXCHANGE_YIELD,
   REMOTE_UPGRADE_FACTOR,
   SUPPLIER_LEVELS,
   SUPPLIER_UPGRADE_COSTS,
   SUPPLY_MAX_LEVEL,
 } from '../data/supply'
 import type { ItemId } from '../data/items'
+import { RECIPES } from '../data/buildings'
 import type { PoiKind } from '../types/poi'
 import { carried, offersFor, unitPrice, type Inventory } from './tradeEngine'
 
@@ -75,14 +77,14 @@ export function planOrder(
   item: ItemId,
   requested: number,
   freeSpace: number,
-  dirtyCash: number,
+  cash: number,
   now: number,
 ): OrderPlan {
   if (!offersFor(supplier.poi.kind).buy.includes(item)) return { ok: false, reason: 'Ese proveedor no vende eso.' }
   if (supplier.order) return { ok: false, reason: 'Ya tienes un pedido en marcha con este proveedor.' }
   const unit = unitPrice(supplier.poi.kind, item, new Date(now))
   const info = supplierInfo(supplier.level)
-  const qty = Math.min(requested, info.maxQty, freeSpace, Math.floor(dirtyCash / unit))
+  const qty = Math.min(requested, info.maxQty, freeSpace, Math.floor(cash / unit))
   if (qty < 1) {
     if (freeSpace < 1) return { ok: false, reason: 'No hay espacio en el almacén del HQ.' }
     return { ok: false, reason: 'No te llega el dinero sucio.' }
@@ -162,3 +164,26 @@ export function advanceSupply(state: SupplyState, now: number): SupplyState & { 
   }
   return { suppliers, carriers, storage, storageCap: state.storageCap, delivered }
 }
+
+/** Dinero Sucio que te dan por ensuciar `clean` dólares limpios (el cambista se queda con el resto) */
+export const dirtyFromClean = (clean: number): number => Math.floor(clean * DIRTY_EXCHANGE_YIELD)
+
+/**
+ * Ordena los productos a pedir por necesidad: primero lo que más falta para las recetas que ya puedes cocinar
+ * (menos existencias en relación con lo que gasta un lote); lo que no usa ninguna receta, al final.
+ */
+export function rankByNeed(items: ItemId[], storage: Inventory, labLevel: number, reputation: number): ItemId[] {
+  const usable = Object.values(RECIPES).filter((r) => labLevel >= r.minLab && reputation >= r.minRep)
+  const need = (item: ItemId): number => usable.reduce((sum, r) => sum + (r.inputs[item] ?? 0), 0)
+  const score = (item: ItemId): number => ((storage[item] ?? 0) + 1) / Math.max(need(item), 0.001)
+  return [...items].sort((a, b) => {
+    const na = need(a) > 0
+    const nb = need(b) > 0
+    if (na !== nb) return na ? -1 : 1
+    return score(a) - score(b)
+  })
+}
+
+/** ¿Algún receta que puedes cocinar usa este producto? */
+export const isNeeded = (item: ItemId, labLevel: number, reputation: number): boolean =>
+  Object.values(RECIPES).some((r) => labLevel >= r.minLab && reputation >= r.minRep && (r.inputs[item] ?? 0) > 0)

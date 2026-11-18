@@ -7,25 +7,24 @@ export const MAX_LEVEL = 3
 export const HQ_COSTS = [0, 1200, 4800]
 export const LAB_COSTS = [0, 1600, 6000]
 export const STORAGE_COSTS = [0, 1000, 3600]
-export const BACKPACK_COSTS = [0, 800, 3200]
 
 export const STORAGE_CAPACITY = [100, 250, 600]
-export const BACKPACK_CAPACITY = [30, 60, 120]
 /** Camellos máximos por nivel de HQ */
 export const DEALER_SLOTS = [2, 4, 6]
 
 export const LAB_NAMES = ['Cocina de garaje', 'Laboratorio Básico', 'Laboratorio Avanzado']
 
-export type UpgradeKind = 'hq' | 'lab' | 'storage' | 'backpack'
+export type UpgradeKind = 'hq' | 'lab' | 'storage'
 
 export const UPGRADE_INFO: Record<UpgradeKind, { label: string; costs: number[] }> = {
   hq: { label: 'Cuartel General', costs: HQ_COSTS },
   lab: { label: 'Laboratorio', costs: LAB_COSTS },
   storage: { label: 'Almacén', costs: STORAGE_COSTS },
-  backpack: { label: 'Mochila / vehículo', costs: BACKPACK_COSTS },
 }
 
 export const DEALER_HIRE_COST = 150
+/** Al despedir a un camello se recupera esta parte de lo que costó contratarlo (en Dinero Limpio) */
+export const REFUND_SHARE = 0.5
 
 // --- Camellos: lealtad, robo y adulteración (GDD §4 quater) ---
 /** Cada camello tiene una fiabilidad 0-100. Prob. de cada sablazo por venta = BASE × (1 - fiabilidad/100) */
@@ -38,8 +37,8 @@ export const DEALER_CUT_PAYOUT = 0.7
 /** Una adulteración sube el Heat y quita reputación */
 export const DEALER_CUT_HEAT = 5
 export const DEALER_CUT_REP_LOSS = 1
-/** Los camellos dan esta parte de la reputación por unidad vendida (la venta a mano da el 100 %) */
-export const DEALER_REP_SHARE = 0.25
+/** Los camellos dan esta parte de la reputación por unidad vendida (1 = la reputación completa del producto) */
+export const DEALER_REP_SHARE = 1
 /** Ventas necesarias para conocer de verdad a un camello (hasta entonces su fiabilidad es un misterio) */
 export const DEALER_REVEAL_SALES = 20
 /** Prima de lealtad: se paga en Dinero Sucio y sube la fiabilidad */

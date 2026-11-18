@@ -1,7 +1,7 @@
 import type { VisitedPoi } from '../store/baseStore'
 import type { Business, Dealer, DealerEvent, Job } from './idleEngine'
 import type { Carrier, Suppliers } from './supplyEngine'
-import type { DailyLimits, Inventory } from './tradeEngine'
+import type { Inventory } from './tradeEngine'
 
 /**
  * Partida serializable que se sube a la nube. Lógica pura (sin stores ni red) para poder probarla.
@@ -10,18 +10,14 @@ import type { DailyLimits, Inventory } from './tradeEngine'
 export interface SaveBlob {
   v: 1
   inventory: {
-    inventory: Inventory
     dirtyCash: number
     cleanCash: number
-    capacity: number
-    limits: DailyLimits
     heat: number
   }
   base: {
     hqLevel: number
     labLevel: number
     storageLevel: number
-    backpackLevel: number
     storage: Inventory
     job: Job | null
     dealers: Dealer[]
@@ -70,7 +66,6 @@ export const progressKey = (b: SaveBlob): string =>
     b.base.hqLevel,
     b.base.labLevel,
     b.base.storageLevel,
-    b.base.backpackLevel,
     b.base.reputation,
     b.base.dealers.length,
     b.base.businesses.length,
@@ -101,8 +96,7 @@ export const isPristine = (b: SaveBlob): boolean =>
   (b.base.carriers ?? []).length === 0 &&
   b.base.hqLevel === 1 &&
   b.base.labLevel === 1 &&
-  b.base.storageLevel === 1 &&
-  b.base.backpackLevel === 1
+  b.base.storageLevel === 1
 
 export type SyncPlan = 'push' | 'pull' | 'ask' | 'noop'
 

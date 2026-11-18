@@ -8,21 +8,22 @@ import {
 } from '../data/supply'
 import { POI_KINDS } from '../data/poiKinds'
 import { useBaseStore, type ActionResult } from '../store/baseStore'
-import { useInventoryStore } from '../store/inventoryStore'
 import { usePlayerStore } from '../store/playerStore'
 import { haversine, INTERACTION_RADIUS_M } from '../services/geoService'
 import { fmtTime } from '../services/fmt'
-import { play } from '../services/sound'
+import { favorCost } from '../services/favors'
+import { handleResult } from '../services/feedback'
 import { offersFor, unitPrice } from '../services/tradeEngine'
-import { supplierUpgradeCost, type Carrier, type Supplier } from '../services/supplyEngine'
+import { isNeeded, rankByNeed, supplierUpgradeCost, type Carrier, type Supplier } from '../services/supplyEngine'
 import { useNow } from '../services/useIdle'
 import { PoiBadge } from './PoiBadge'
+import { OrderTimeline } from './OrderTimeline'
+import { saveLastOrder } from '../services/lastOrder'
 
 const btn = 'cartoon-btn px-3 py-1.5 text-sm disabled:opacity-40'
 
 function report(r: ActionResult, sfx: 'level' | 'tap' = 'tap'): void {
-  play(r.ok ? sfx : 'error')
-  useInventoryStore.getState().setNotice(r.ok ? r.message : r.reason)
+  handleResult(r, sfx)
 }
 
 /** Punto de suministro con contacto: estado del pedido, pedir y mejorar. */
@@ -31,12 +32,23 @@ export function SupplierCard({ supplier, blocked = false }: { supplier: Supplier
   const carriers = useBaseStore((s) => s.carriers)
   const position = usePlayerStore((s) => s.position)
   const orderSupply = useBaseStore((s) => s.orderSupply)
+  const skipOrder = useBaseStore((s) => s.skipOrder)
+  const storage = useBaseStore((s) => s.storage)
+  const labLevel = useBaseStore((s) => s.labLevel)
+  const reputation = useBaseStore((s) => s.reputation)
+  const skipTrip = useBaseStore((s) => s.skipTrip)
   const upgradeSupplier = useBaseStore((s) => s.upgradeSupplier)
   const { poi, level, order } = supplier
+  const placeOrder = (item: ItemId, qty: number): void => {
+    const r = orderSupply(poi.id, item, qty)
+    if (r.ok) saveLastOrder({ poiId: poi.id, item, qty })
+    report(r)
+  }
   const info = SUPPLIER_LEVELS[level - 1]
   const near = !!position && haversine(position, poi) <= INTERACTION_RADIUS_M
   const upCost = supplierUpgradeCost(level, !near)
-  const trip = carriers.find((c) => c.trip?.supplierId === poi.id)?.trip
+  const tripCarrier = carriers.find((c) => c.trip?.supplierId === poi.id)
+  const trip = tripCarrier?.trip
 
   return (
     <div className="border-4 border-black p-2 flex flex-col gap-2">
@@ -50,29 +62,48 @@ export function SupplierCard({ supplier, blocked = false }: { supplier: Supplier
         </div>
       </div>
 
-      {order && (
-        <p className="text-xs font-black bg-green-100 border-2 border-black p-1.5">
-          {order.readyAt > now
-            ? `Preparando ${order.qty} × ${ITEMS[order.item].label}: listo en ${fmtTime(order.readyAt - now)}`
-            : `Listo: ${order.qty} × ${ITEMS[order.item].label} esperando transportista`}
-        </p>
+      {order && !trip && (
+        <OrderTimeline
+          step={order.readyAt > now ? 0 : 1}
+          detail={
+            order.readyAt > now
+              ? `${order.qty} × ${ITEMS[order.item].label}: listo en ${fmtTime(order.readyAt - now)}`
+              : `${order.qty} × ${ITEMS[order.item].label} esperando transportista`
+          }
+        />
+      )}
+      {order && order.readyAt > now && (
+        <button className={`${btn} bg-white!`} onClick={() => report(skipOrder(poi.id), 'level')}>
+          Adelantar ({favorCost(order.readyAt - now)} favores)
+        </button>
       )}
       {trip && (
-        <p className="text-xs font-black bg-blue-100 border-2 border-black p-1.5">
-          Transportista en camino con {trip.qty} × {ITEMS[trip.item].label}: llega en {fmtTime(trip.arriveAt - now)}
-        </p>
+        <OrderTimeline
+          step={2}
+          detail={`${tripCarrier ? 'Transportista ' + (carriers.indexOf(tripCarrier) + 1) : 'Transportista'} lleva ${trip.qty} × ${ITEMS[trip.item].label}: llega en ${fmtTime(trip.arriveAt - now)}`}
+        />
+      )}
+      {trip && trip.arriveAt > now && tripCarrier && (
+        <button className={`${btn} bg-white!`} onClick={() => report(skipTrip(tripCarrier.id), 'level')}>
+          Acelerar viaje ({favorCost(trip.arriveAt - now)} favores)
+        </button>
       )}
 
-      {offersFor(poi.kind).buy.map((item: ItemId) => (
+      {rankByNeed(offersFor(poi.kind).buy, storage, labLevel, reputation).map((item: ItemId, i) => (
         <div key={item} className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
-            <p className="font-bold leading-tight truncate">{ITEMS[item].label}</p>
+            <p className="font-bold leading-tight truncate">
+              {ITEMS[item].label}
+              {i === 0 && isNeeded(item, labLevel, reputation) && (
+                <span className="ml-1 text-xs font-black bg-yellow-300 border-2 border-black px-1">LO MÁS NECESARIO</span>
+              )}
+            </p>
             <p className="text-xs font-bold opacity-70">${unitPrice(poi.kind, item, new Date(now))} c/u</p>
           </div>
-          <button className={btn} disabled={blocked || !!order} onClick={() => report(orderSupply(poi.id, item, 10))}>
+          <button className={btn} disabled={blocked || !!order} onClick={() => placeOrder(item, 10)}>
             Pedir 10
           </button>
-          <button className={`${btn} bg-white!`} disabled={blocked || !!order} onClick={() => report(orderSupply(poi.id, item, 999))}>
+          <button className={`${btn} bg-white!`} disabled={blocked || !!order} onClick={() => placeOrder(item, 999)}>
             Máx
           </button>
         </div>

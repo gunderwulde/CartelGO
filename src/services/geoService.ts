@@ -3,8 +3,8 @@ import type { GeoFix, LatLng } from '../types'
 export const MAX_WALK_SPEED_KMH = 25
 /** Histéresis: se desbloquea al bajar de este umbral */
 export const RESUME_SPEED_KMH = 20
-/** Radio de interacción con POIs y HQ. TEMPORAL para pruebas: 150 m (valor de diseño: 50 m) */
-export const INTERACTION_RADIUS_M = 150
+/** Radio de interacción con POIs y HQ. TEMPORAL para pruebas: 1500 m (valor de diseño: 50 m) */
+export const INTERACTION_RADIUS_M = 1500
 
 const EARTH_RADIUS_M = 6_371_000
 const toRad = (d: number): number => (d * Math.PI) / 180

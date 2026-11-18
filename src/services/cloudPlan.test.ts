@@ -3,12 +3,11 @@ import { fullKey, isPristine, isSaveBlob, planSync, progressKey, summarize, type
 
 const blob = (over: Partial<SaveBlob['base']> = {}): SaveBlob => ({
   v: 1,
-  inventory: { inventory: {}, dirtyCash: 10, cleanCash: 350, capacity: 20, limits: { day: '2026-01-01', bought: {} }, heat: 0 },
+  inventory: { dirtyCash: 10, cleanCash: 350, heat: 0 },
   base: {
     hqLevel: 1,
     labLevel: 1,
     storageLevel: 1,
-    backpackLevel: 1,
     storage: {},
     job: null,
     dealers: [],

@@ -7,6 +7,24 @@ import { registerPoiIcons } from './poiIcons'
 const POI_SOURCE = 'pois'
 const POLICE_SOURCE = 'police-zones'
 
+/** Actividad del jugador en un lugar: se resalta con un aro de color */
+export type PoiActivity = 'dealer' | 'prep' | 'transit'
+
+interface ActivityInput {
+  dealers: { poiId: string }[]
+  suppliers: Record<string, { order: unknown }>
+  carriers: { trip: { supplierId: string } | null }[]
+}
+
+/** Qué lugares tienen camello (verde), pedido preparándose (amarillo) o transportista en camino (azul) */
+export function poiActivities({ dealers, suppliers, carriers }: ActivityInput): Record<string, PoiActivity> {
+  const out: Record<string, PoiActivity> = {}
+  for (const d of dealers) out[d.poiId] = 'dealer'
+  for (const [id, sup] of Object.entries(suppliers)) if (sup.order) out[id] = 'prep'
+  for (const c of carriers) if (c.trip) out[c.trip.supplierId] = 'transit'
+  return out
+}
+
 export function circlePolygon(lng: number, lat: number, radiusM: number): Feature<Polygon> {
   const pts: [number, number][] = []
   const dLat = radiusM / 111_320
@@ -38,6 +56,19 @@ export function addPoiLayers(map: MlMap): void {
 
   map.addSource(POI_SOURCE, { type: 'geojson', data: empty<Point>() })
   map.addLayer({
+    id: 'poi-activity',
+    type: 'circle',
+    source: POI_SOURCE,
+    filter: ['!=', ['get', 'activity'], ''],
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 14, 16, 22, 18, 28],
+      'circle-color': ['match', ['get', 'activity'], 'dealer', '#4ade80', 'prep', '#facc15', '#38bdf8'],
+      'circle-opacity': 0.55,
+      'circle-stroke-width': 4,
+      'circle-stroke-color': ['match', ['get', 'activity'], 'dealer', '#16a34a', 'prep', '#ca8a04', '#0284c7'],
+    },
+  })
+  map.addLayer({
     id: 'poi-icons',
     type: 'symbol',
     source: POI_SOURCE,
@@ -56,10 +87,10 @@ export function addPoiLayers(map: MlMap): void {
 export const POI_ICON_LAYER = 'poi-icons'
 
 /** Vuelca los POIs al mapa. */
-export function setPois(map: MlMap, pois: Poi[]): void {
+export function setPois(map: MlMap, pois: Poi[], activities: Record<string, PoiActivity> = {}): void {
   const features: Feature<Point>[] = pois.map((p) => ({
     type: 'Feature',
-    properties: { id: p.id, kind: p.kind, name: p.name ?? '' },
+    properties: { id: p.id, kind: p.kind, name: p.name ?? '', activity: activities[p.id] ?? '' },
     geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
   }))
   ;(map.getSource(POI_SOURCE) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features })

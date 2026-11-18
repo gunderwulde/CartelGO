@@ -10,6 +10,21 @@ body,
   font-family: system-ui, sans-serif;
 }
 
+/* El texto no se selecciona (ni menú de copiar al mantener pulsado), salvo en campos editables */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 .avatar {
   width: 28px;
   height: 28px;
@@ -24,6 +39,8 @@ body,
   box-shadow: 4px 4px 0 #111;
   background: #fde047;
   font-weight: 900;
+  /* Zona táctil mínima de 44 px */
+  min-height: 44px;
   transition: transform 0.05s, box-shadow 0.05s;
   touch-action: manipulation;
   user-select: none;
@@ -42,4 +59,136 @@ body,
   font-size: 30px;
   line-height: 1;
   filter: drop-shadow(2px 2px 0 #111);
+}
+
+/* HQ trabajando (laboratorio o transportistas en marcha): brilla (sin transform: MapLibre lo usa para colocar el marcador) */
+.hq-marker.working {
+  animation: hq-glow 1.2s ease-in-out infinite;
+}
+@keyframes hq-glow {
+  0%,
+  100% {
+    filter: drop-shadow(2px 2px 0 #111) drop-shadow(0 0 2px #facc15);
+  }
+  50% {
+    filter: drop-shadow(2px 2px 0 #111) drop-shadow(0 0 12px #facc15) drop-shadow(0 0 6px #facc15);
+  }
+}
+
+.car-marker {
+  pointer-events: none;
+}
+.car-marker span {
+  display: block;
+  font-size: 26px;
+  line-height: 1;
+  filter: drop-shadow(2px 2px 0 #111);
+}
+
+/* Botón del tutorial: parpadea mientras queda algo por hacer */
+.tutorial-blink {
+  animation: tut-blink 1s ease-in-out infinite;
+}
+@keyframes tut-blink {
+  0%,
+  100% {
+    background: #fde047;
+    transform: scale(1);
+  }
+  50% {
+    background: #ffffff;
+    transform: scale(1.1);
+  }
+}
+
+/* Tarjeta del tutorial: entra desde la derecha y sale por la izquierda */
+.tutorial-in {
+  animation: tut-in 0.35s ease-out both;
+}
+.tutorial-out {
+  animation: tut-out 0.35s ease-in both;
+}
+@keyframes tut-in {
+  from {
+    transform: translateX(120vw);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes tut-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-120vw);
+    opacity: 0;
+  }
+}
+
+/* Cifras con ancho fijo: no bailan al cambiar */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Foco visible para teclado y lectores de pantalla */
+:focus-visible {
+  outline: 4px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Celebración de éxito: rebote + destellos que salen disparados */
+.celebrate-pop {
+  animation: celebrate-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+@keyframes celebrate-pop {
+  from {
+    transform: scale(0.3) rotate(-6deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+.celebrate-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 22px;
+  animation: celebrate-spark 0.9s ease-out both;
+}
+@keyframes celebrate-spark {
+  from {
+    transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(var(--a)) translateY(-84px) scale(1.1);
+    opacity: 0;
+  }
+}
+
+/* Paso actual de una línea de estado */
+.timeline-pulse {
+  animation: timeline-pulse 1s ease-in-out infinite;
+}
+@keyframes timeline-pulse {
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

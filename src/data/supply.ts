@@ -40,3 +40,8 @@ export const CARRIER_HIRE_COST = 200
 export const CARRIER_UPGRADE_COSTS = [0, 600, 2000]
 /** Transportistas máximos por nivel de HQ */
 export const CARRIER_SLOTS = [1, 2, 3]
+
+/** Ensuciar dinero: de cada Dinero Limpio que cambias, el cambista te da esta parte en Dinero Sucio (se queda con el resto) */
+export const DIRTY_EXCHANGE_YIELD = 0.5
+/** Importes (limpios) que ofrece el HQ para ensuciar */
+export const DIRTY_EXCHANGE_STEPS = [50, 200]

@@ -14,7 +14,7 @@
 1. El jugador camina por su ciudad con el mapa abierto.
 2. El radar (radio de interacción de **50 metros**) detecta Puntos de Interés (POIs) generados desde OpenStreetMap.
 3. **Abastecimiento:** La **primera vez** el jugador tiene que ir en persona a una Zona Industrial o Farmacia para establecer contacto y convertirla en **Punto de Suministro**. A partir de ahí no hace falta volver: los pedidos de *Precursores* se hacen desde el HQ o desde cualquier sitio y un *Transportista* los trae (ver §4 bis).
-4. **Distribución:** El jugador visita Parques, Bares o Discotecas para vender *Producto Terminado* a cambio de **Dinero Sucio**.
+4. **Distribución:** El jugador visita Parques, Bares o Discotecas para contratar a un *camello* que venda por él el *Producto Terminado* (no vende a mano) a cambio de **Dinero Sucio**.
 5. **Evasión:** El jugador evita el radio de influencia de las Comisarías (zonas de alto riesgo de redada).
 
 ### Fase B: En el Cuartel General (Gestión Idle)
@@ -53,7 +53,7 @@
 
 ## 4 bis. Cadena de Suministro (Puntos de Suministro y Transportistas)
 
-El jugador no puede ir cargando por la calle todo lo que necesita (la mochila es pequeña), así que el abastecimiento funciona como una cadena de tres piezas.
+El jugador no carga mercancía encima (no hay mochila: se dedica a los negocios, no a vender en la calle), así que el abastecimiento funciona como una cadena de tres piezas.
 
 **1. Contacto inicial (en persona, obligatorio).** La primera vez hay que acercarse a un Almacén Clandestino o Farmacia (dentro del radio de interacción) y pulsar *Establecer contacto* (gratis). Desde ese momento es un **Punto de Suministro** del jugador para siempre. Sin contacto no se puede pedir nada ahí.
 
@@ -85,14 +85,13 @@ Cifras de partida: **$550 limpios** (justo un negocio tapadera + un transportist
 | Cuartel General | $1.200 | $4.800 |
 | Laboratorio | $1.600 | $6.000 |
 | Almacén | $1.000 | $3.600 |
-| Mochila / vehículo | $800 | $3.200 |
 | Punto de Suministro / Transportista | $600 | $2.000 |
 
 Camello $150 · Transportista $200 · Negocio tapadera: el primero $200 y luego $1.600, $2.400, $3.200…
 
 **Cuello de botella:** el blanqueo (cada negocio convierte 30 sucios/min en 24 limpios/min). La producción supera pronto lo que se puede blanquear, por eso los negocios adicionales escalan fuerte.
 
-**Cronograma de un jugador atento** (simulado, compra en cuanto puede y vende a mano ~60 uds/día; en la práctica, cuenta el doble):
+**Cronograma de un jugador atento** (cifras de una simulación antigua en la que el jugador también vendía a mano; ahora todo lo venden los camellos y habrá que volver a simular):
 
 | Momento | Hito |
 | :--- | :--- |
@@ -103,7 +102,7 @@ Camello $150 · Transportista $200 · Negocio tapadera: el primero $200 y luego 
 | Horas 6-12 | Segundo transportista, HQ y laboratorio al nivel 3, camellos 5 y 6, negocios 3-5. Toda la infraestructura mejorada. |
 | Día 4 | Reputación 500: se desbloquea el **Polvo Estelar**. |
 
-La reputación solo sube con ventas hechas a mano (1 / 3 / 8 por unidad según producto), así que **sale a la calle** quien quiere avanzar de Tier; con 30 uds/día el Cristal llega al día 3 y el Polvo al día 8.
+La reputación sube con las ventas de los camellos (1 / 3 / 8 por unidad según producto): cuantos más camellos y producto, más rápido se avanza de Tier.
 
 **Pendientes de balance:** pasadas las ~12 h todo está mejorado y el dinero se acumula sin uso. Hacen falta más sumideros (más niveles, prestigio, expansión territorial de la Fase 2). Los camellos dan el 25 % de la reputación por unidad vendida y la *Prima* (§4 quater) es un primer sumidero de Dinero Sucio.
 
@@ -124,15 +123,43 @@ Los camellos se contratan **en persona** en un Parque, Bar o Discoteca ($150 lim
 
 **Qué se puede hacer.** Pagar una **Prima** ($200 Dinero Sucio, +15 fiabilidad; sumidero de dinero sucio) o **despedirlo**.
 
-**Reputación.** Los camellos aportan el 25 % de la reputación que daría la misma venta a mano.
+**Reputación.** Cada venta de un camello da la reputación completa del producto (ya no existe la venta a mano).
+
+**Redadas.** Sin mochila, la policía se lleva un 30 % de las existencias del almacén.
 
 El cálculo es determinista (hash de camello + instante), así que sale igual offline y online y un servidor podrá reproducirlo (Fase 2).
 
 ---
 
+## 4 quinquies. Red de seguridad (no quedarse sin dinero)
+
+Los precursores se pagan con **Dinero Sucio**, pero el blanqueo automático lo convierte en limpio. Sin cuidado, el sucio llega a 0, no puedes pedir ingredientes, no produces y no entra más dinero (la simulación lo confirma: la partida no avanza). Cuatro piezas lo evitan:
+
+1. **Ensuciar dinero.** El jugador puede cambiar Dinero Limpio por Dinero Sucio en el HQ (pestaña Mejoras). Un cambista se queda con la mitad: de cada $100 limpios salen $50 sucios. Es la salida de emergencia si el sucio se agota, y cara a propósito para que no sustituya al blanqueo normal. Los pedidos se pagan siempre con sucio.
+2. **Reembolso al despedir.** Despedir a un camello devuelve el **50 %** de su coste de contratación, en Dinero Limpio (lo que pagaste).
+3. **Aviso de bloqueo.** Si una compra en limpio (o ensuciar dinero) te deja sin los $200 necesarios para el primer negocio tapadera y aún no tienes ninguno, la app pregunta antes de ejecutarla.
+
+4. **Anuncio de rescate.** Si el jugador tiene menos de $30 sucios y menos de $100 limpios, el juego le propone ver un anuncio a cambio de **$100 sucios**. El anuncio bloquea la pantalla 20 s (sin poder cerrarlo) y después paga. Hay una espera de 5 min entre rescates. De momento es un hueco de prueba («AD HERE»), sin red publicitaria; la recompensa es siempre en Dinero Sucio, nunca en limpio.
+
+Pendiente de valorar: que ensuciar dinero también tenga un coste en Heat o un límite diario si se abusa.
+
+---
+
+## 4 sexies. Favores (saltar esperas)
+
+Tercera moneda, aparte del Dinero Sucio y el Limpio, para no alterar la economía. Representa favores que te debe el hampa.
+
+- **Qué salta:** el tiempo de preparación de un pedido, el viaje de un transportista y el lote que está cocinando el laboratorio. También despista a la policía (Heat a 0, 3 favores).
+- **Precio:** 1 favor por cada 5 minutos de espera restantes, redondeando hacia arriba (mínimo 1). Una espera de 2 h cuesta 24.
+- **Cómo se consiguen:** 5 de regalo al empezar y 1 por cada paso del tutorial. Más adelante: hitos de reputación, premio diario y anuncios con recompensa.
+- **Dónde se ve:** en la barra superior y en la cabecera del HQ. Los botones de saltar aparecen junto a cada espera.
+
+**Herramientas de prueba.** Con `?dev` en la URL aparece un panel (DEV) para dar dinero, favores y reputación, adelantar el reloj 1 h u 8 h y saltar o reiniciar el tutorial. No existe para los jugadores.
+
+---
+
 ## 5. Infraestructuras del Imperio
 - **Cuartel General (HQ):** El jugador lo coloca en el mapa al empezar (puede moverlo gratis cada 7 días). Determina el nivel máximo de los demás edificios.
-- **Mochila / Vehículo:** Define cuánta mercancía puede cargar el jugador físicamente mientras camina.
 - **Almacén:** Capacidad máxima de almacenamiento en la base.
 - **Laboratorio:** Transforma Precursores en Mercancía automáticamente (mejorable en velocidad y pureza).
 - **Red de Camellos:** Slots de NPCs, cada uno asignado al punto de venta donde se contrató; generan ingresos *Idle* con riesgo de robo/adulteración (ver §4 quater).

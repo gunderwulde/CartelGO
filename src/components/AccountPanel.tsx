@@ -5,7 +5,7 @@ import { resolveConflict, sendCode, signOut, syncNow, verifyCode } from '../serv
 import type { SaveSummary } from '../services/cloudPlan'
 import { play } from '../services/sound'
 
-const input = 'w-full border-[3px] border-black rounded-lg px-3 py-2 font-bold bg-white text-base'
+const input = 'w-full border-[3px] border-black rounded-lg px-3 py-2 font-bold bg-white text-sm'
 const btn = 'cartoon-btn px-4 py-2 text-sm disabled:opacity-40'
 
 const fmtDate = (t: number | string): string =>
@@ -65,7 +65,7 @@ function SignInForm() {
         <>
           <p className="text-sm font-black">Te hemos escrito a {email}. Mira también en spam.</p>
           <input
-            className={`${input} tracking-[0.3em] text-center text-xl`}
+            className={`${input} tracking-[0.3em] text-center text-lg`}
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={10}

@@ -3,7 +3,9 @@ import { CARRIER_LEVELS, SUPPLIER_LEVELS, SUPPLIER_UPGRADE_COSTS } from '../data
 import {
   advanceSupply,
   pending,
+  rankByNeed,
   planOrder,
+  dirtyFromClean,
   supplierUpgradeCost,
   type Carrier,
   type Supplier,
@@ -54,6 +56,13 @@ describe('planOrder', () => {
   it('el pedido queda listo tras el tiempo de preparación del nivel', () => {
     const r = planOrder(supplier('a', 'warehouse', 3), 'quimicos', 10, 100, 1000, T0)
     expect(r.ok && r.order.readyAt).toBe(T0 + SUPPLIER_LEVELS[2].prepMs)
+  })
+})
+
+describe('ensuciar dinero', () => {
+  it('el cambista se queda con la mitad', () => {
+    expect(dirtyFromClean(200)).toBe(100)
+    expect(dirtyFromClean(51)).toBe(25)
   })
 })
 
@@ -146,5 +155,17 @@ describe('pending', () => {
     const s = { ...supplier('a'), order: { item: 'quimicos' as const, qty: 7, readyAt: T0 } }
     const c = { ...carrier('c'), trip: { supplierId: 'x', item: 'quimicos' as const, qty: 3, arriveAt: T0 } }
     expect(pending({ a: s }, [c])).toBe(10)
+  })
+})
+
+describe('rankByNeed', () => {
+  const all = ['quimicos', 'fertilizante', 'baterias'] as const
+  it('al principio solo hace falta fertilizante (la Hierba)', () => {
+    expect(rankByNeed([...all], {}, 1, 0)[0]).toBe('fertilizante')
+  })
+  it('con el laboratorio y la reputación para Cristal, lo que menos tienes va primero', () => {
+    const r = rankByNeed([...all], { quimicos: 50, baterias: 0, fertilizante: 99 }, 2, 100)
+    expect(r[0]).toBe('baterias')
+    expect(r[r.length - 1]).toBe('fertilizante')
   })
 })
