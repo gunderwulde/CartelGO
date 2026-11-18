@@ -14,6 +14,12 @@ import { MAP_STYLE_URL, applyCartoonStyle } from './cartoonStyle'
 const RADAR_SOURCE = 'radar'
 const DEFAULT_CENTER: [number, number] = [-3.7038, 40.4168] // Madrid, hasta tener GPS
 
+/** El juego es de barrio: no tiene sentido alejarse más (ni ver fuera de la zona con POIs cargados) */
+const MIN_ZOOM = 14
+const MAX_ZOOM = 19
+/** Cuánto se puede arrastrar el mapa lejos del jugador (grados: ~3 km) */
+const PAN_LIMIT_DEG = 0.03
+
 interface Props {
   follow: boolean
   /** Toque sobre el icono de un lugar */
@@ -34,6 +40,8 @@ export default function GameMap({ follow, onPoiClick }: Props) {
       style: MAP_STYLE_URL,
       center: DEFAULT_CENTER,
       zoom: 16,
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM,
       attributionControl: { compact: true },
     })
     let ready = false
@@ -56,7 +64,17 @@ export default function GameMap({ follow, onPoiClick }: Props) {
       if (s.hq !== prev.hq) showHq(s.hq)
     })
 
+    let boundsAt: [number, number] | null = null
+
     function update(lng: number, lat: number): void {
+      // Límite de arrastre alrededor del jugador; solo se recoloca cuando se ha movido un trecho
+      if (!boundsAt || Math.abs(boundsAt[0] - lng) > PAN_LIMIT_DEG / 6 || Math.abs(boundsAt[1] - lat) > PAN_LIMIT_DEG / 6) {
+        boundsAt = [lng, lat]
+        map.setMaxBounds([
+          [lng - PAN_LIMIT_DEG, lat - PAN_LIMIT_DEG],
+          [lng + PAN_LIMIT_DEG, lat + PAN_LIMIT_DEG],
+        ])
+      }
       marker.setLngLat([lng, lat]).addTo(map)
       if (ready) {
         ;(map.getSource(RADAR_SOURCE) as maplibregl.GeoJSONSource).setData(circlePolygon(lng, lat, INTERACTION_RADIUS_M))
