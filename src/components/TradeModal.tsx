@@ -7,7 +7,8 @@ import { useInventoryStore } from '../store/inventoryStore'
 import { useBaseStore } from '../store/baseStore'
 import { businessCost, purityMult } from '../data/buildings'
 import { play } from '../services/sound'
-import { carried, dailyRemaining, offersFor, unitPrice } from '../services/tradeEngine'
+import { carried, offersFor, unitPrice } from '../services/tradeEngine'
+import { SupplierCard } from './SupplyCards'
 
 interface Props {
   poi: Poi
@@ -19,18 +20,18 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
   const inventory = useInventoryStore((s) => s.inventory)
   const dirtyCash = useInventoryStore((s) => s.dirtyCash)
   const capacity = useInventoryStore((s) => s.capacity)
-  const limits = useInventoryStore((s) => s.limits)
   const trade = useInventoryStore((s) => s.trade)
   const setNotice = useInventoryStore((s) => s.setNotice)
   const labLevel = useBaseStore((s) => s.labLevel)
   const businesses = useBaseStore((s) => s.businesses)
+  const supplier = useBaseStore((s) => s.suppliers[poi.id])
   const cleanCash = useInventoryStore((s) => s.cleanCash)
   const mult = purityMult(labLevel)
 
   const now = new Date()
   const offers = offersFor(poi.kind)
   const info = POI_KINDS[poi.kind]
-  const remaining = dailyRemaining(poi, limits, now)
+  const isSupplyPoint = poi.kind === 'warehouse' || poi.kind === 'pharmacy'
 
   const act = (mode: 'buy' | 'sell', item: ItemId, qty: number): void => {
     const r = trade(mode, poi, item, qty, mode === 'sell' ? mult : 1)
@@ -86,9 +87,28 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
       {blocked && <p className="text-sm font-black text-red-600 mb-2">Vas demasiado rápido. Nada de negocios al volante.</p>}
 
       <div className="flex flex-col gap-3">
-        {offers.buy.map((i) => row('buy', i))}
         {offers.sell.map((i) => row('sell', i))}
-        {poi.kind === 'pharmacy' && <p className="text-xs font-bold">Te quedan {remaining} unidades hoy en esta farmacia.</p>}
+        {isSupplyPoint &&
+          (supplier ? (
+            <SupplierCard supplier={supplier} blocked={blocked} />
+          ) : (
+            <div>
+              <p className="text-sm font-bold mb-2">
+                Establece contacto una vez, en persona. Desde entonces le pides mercancía desde el HQ y un transportista te la trae.
+              </p>
+              <button
+                className="cartoon-btn px-3 py-2 text-sm"
+                disabled={blocked}
+                onClick={() => {
+                  const r = useBaseStore.getState().establishContact(poi)
+                  play(r.ok ? 'level' : 'error')
+                  setNotice(r.ok ? r.message : r.reason)
+                }}
+              >
+                Establecer contacto
+              </button>
+            </div>
+          ))}
         {poi.kind === 'cover' && (
           <div>
             {businesses.some((b) => b.poiId === poi.id) ? (

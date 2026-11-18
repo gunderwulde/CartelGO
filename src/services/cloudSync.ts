@@ -90,6 +90,8 @@ export function exportSave(): SaveBlob {
       dealers: b.dealers,
       businesses: b.businesses,
       visited: b.visited,
+      suppliers: b.suppliers,
+      carriers: b.carriers,
       reputation: b.reputation,
       dealersAt: b.dealersAt,
       launderAt: b.launderAt,
@@ -105,7 +107,8 @@ const hqCell = (): string | null => {
 /** Sustituye la partida local. El HQ local (si existe) se conserva: la nube nunca lo trae. */
 function applySave(blob: SaveBlob): void {
   useInventoryStore.setState({ ...blob.inventory })
-  useBaseStore.setState({ ...blob.base })
+  // Las partidas anteriores al Sprint 7 no traen la cadena de suministro
+  useBaseStore.setState({ suppliers: {}, carriers: [], ...blob.base })
 }
 
 // ---------- Estado interno ----------

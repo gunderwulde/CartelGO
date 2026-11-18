@@ -22,21 +22,18 @@ import { carried } from '../services/tradeEngine'
 import { useNow } from '../services/useIdle'
 import { play, type Sfx } from '../services/sound'
 import { requestNotifyPermission } from '../services/notify'
+import { fmtTime } from '../services/fmt'
+import { CARRIER_HIRE_COST, CARRIER_SLOTS } from '../data/supply'
+import { CarrierCard, SupplierCard } from './SupplyCards'
 
-type Tab = 'almacen' | 'lab' | 'camellos' | 'mejoras'
+type Tab = 'almacen' | 'lab' | 'camellos' | 'suministro' | 'mejoras'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'almacen', label: 'Almacén' },
   { id: 'lab', label: 'Lab' },
   { id: 'camellos', label: 'Camellos' },
+  { id: 'suministro', label: 'Suministro' },
   { id: 'mejoras', label: 'Mejoras' },
 ]
-
-const fmtTime = (ms: number): string => {
-  const s = Math.max(0, Math.ceil(ms / 1000))
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  return h > 0 ? `${h} h ${m} min` : m > 0 ? `${m} min ${s % 60} s` : `${s} s`
-}
 
 export default function HqPanel({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('almacen')
@@ -166,6 +163,34 @@ export default function HqPanel({ onClose }: { onClose: () => void }) {
     </div>
   )
 
+  const supplierList = Object.values(base.suppliers)
+  const supply = (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm font-black">
+        Transportistas {base.carriers.length}/{CARRIER_SLOTS[base.hqLevel - 1]}
+      </p>
+      <p className="text-xs font-bold">
+        Los puntos de suministro preparan tu pedido y un transportista libre lo recoge y lo trae al almacén. Sin transportistas no llega nada.
+      </p>
+      {base.carriers.map((c, i) => (
+        <CarrierCard key={c.id} carrier={c} index={i} />
+      ))}
+      <button className={btn} onClick={() => report(base.hireCarrier(), 'level')}>
+        Contratar transportista ${CARRIER_HIRE_COST}
+      </button>
+
+      <p className="text-sm font-black mt-2">Puntos de suministro ({supplierList.length})</p>
+      {supplierList.length === 0 && (
+        <p className="text-xs font-bold">
+          Ve en persona a un almacén o una farmacia y pulsa «Establecer contacto». Solo hace falta la primera vez.
+        </p>
+      )}
+      {supplierList.map((sp) => (
+        <SupplierCard key={sp.poi.id} supplier={sp} />
+      ))}
+    </div>
+  )
+
   const upgrades = (
     <div className="flex flex-col gap-3">
       {(Object.keys(UPGRADE_INFO) as UpgradeKind[]).map((k) => {
@@ -244,6 +269,7 @@ export default function HqPanel({ onClose }: { onClose: () => void }) {
           {tab === 'almacen' && storage}
           {tab === 'lab' && lab}
           {tab === 'camellos' && dealers}
+          {tab === 'suministro' && supply}
           {tab === 'mejoras' && upgrades}
         </div>
       </div>

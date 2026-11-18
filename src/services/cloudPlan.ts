@@ -1,5 +1,6 @@
 import type { VisitedPoi } from '../store/baseStore'
 import type { Business, Dealer, Job } from './idleEngine'
+import type { Carrier, Suppliers } from './supplyEngine'
 import type { DailyLimits, Inventory } from './tradeEngine'
 
 /**
@@ -26,6 +27,9 @@ export interface SaveBlob {
     dealers: Dealer[]
     businesses: Business[]
     visited: Record<string, VisitedPoi>
+    /** Cadena de suministro; ausente en partidas guardadas antes del Sprint 7 */
+    suppliers?: Suppliers
+    carriers?: Carrier[]
     reputation: number
     dealersAt: number
     launderAt: number
@@ -69,6 +73,9 @@ export const progressKey = (b: SaveBlob): string =>
     b.base.dealers.length,
     b.base.businesses.length,
     Object.keys(b.base.visited).length,
+    Object.keys(b.base.suppliers ?? {}).length,
+    Object.values(b.base.suppliers ?? {}).reduce((a, x) => a + x.level, 0),
+    (b.base.carriers ?? []).reduce((a, x) => a + x.level, 0),
   ].join('|')
 
 /** Huella completa: si no cambia, no hay nada que subir. */
@@ -88,6 +95,8 @@ export const isPristine = (b: SaveBlob): boolean =>
   b.base.dealers.length === 0 &&
   b.base.businesses.length === 0 &&
   Object.keys(b.base.visited).length === 0 &&
+  Object.keys(b.base.suppliers ?? {}).length === 0 &&
+  (b.base.carriers ?? []).length === 0 &&
   b.base.hqLevel === 1 &&
   b.base.labLevel === 1 &&
   b.base.storageLevel === 1 &&

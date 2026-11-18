@@ -15,11 +15,26 @@ import {
   type RecipeId,
   type UpgradeKind,
 } from '../data/buildings'
-import type { ItemId } from '../data/items'
+import {
+  CARRIER_HIRE_COST,
+  CARRIER_SLOTS,
+  CARRIER_UPGRADE_COSTS,
+  SUPPLY_MAX_LEVEL,
+} from '../data/supply'
+import { ITEMS, type ItemId } from '../data/items'
 import type { LatLng } from '../types'
 import type { Poi } from '../types/poi'
 import { syncIdle, batchDurationMs, type Business, type Dealer, type IdleState, type Job } from '../services/idleEngine'
 import { carried, type Inventory } from '../services/tradeEngine'
+import {
+  advanceSupply,
+  newCarrier,
+  pending,
+  planOrder,
+  supplierUpgradeCost,
+  type Carrier,
+  type Suppliers,
+} from '../services/supplyEngine'
 import { haversine, INTERACTION_RADIUS_M } from '../services/geoService'
 import { useInventoryStore } from './inventoryStore'
 import { usePlayerStore } from './playerStore'
@@ -52,6 +67,9 @@ interface BaseState {
   dealers: Dealer[]
   businesses: Business[]
   visited: Record<string, VisitedPoi>
+  /** Puntos de suministro con contacto establecido (GDD §4 bis) */
+  suppliers: Suppliers
+  carriers: Carrier[]
   reputation: number
   dealersAt: number
   launderAt: number
@@ -63,6 +81,11 @@ interface BaseState {
   fireDealer: (id: string) => void
   buyBusiness: (poi: VisitedPoi) => ActionResult
   upgrade: (kind: UpgradeKind) => ActionResult
+  establishContact: (poi: Poi) => ActionResult
+  orderSupply: (poiId: string, item: ItemId, qty: number) => ActionResult
+  upgradeSupplier: (poiId: string) => ActionResult
+  hireCarrier: () => ActionResult
+  upgradeCarrier: (id: string) => ActionResult
   markVisited: (pois: Poi[]) => void
   addSaleReputation: (item: ItemId, qty: number) => void
   /** Avanza el idle hasta ahora (producción, camellos y blanqueo) */
@@ -89,6 +112,8 @@ export const useBaseStore = create<BaseState>()(
       dealers: [],
       businesses: [],
       visited: {},
+      suppliers: {},
+      carriers: [],
       reputation: 0,
       dealersAt: Date.now(),
       launderAt: Date.now(),
@@ -198,6 +223,72 @@ export const useBaseStore = create<BaseState>()(
         return done(`${UPGRADE_INFO[kind].label} al nivel ${level + 1}.`)
       },
 
+      establishContact: (poi) => {
+        const s = get()
+        if (poi.kind !== 'warehouse' && poi.kind !== 'pharmacy') return fail('Ahí no hay nadie que te suministre.')
+        if (s.suppliers[poi.id]) return fail('Ya es tu proveedor.')
+        const pos = usePlayerStore.getState().position
+        if (!pos || haversine(pos, poi) > INTERACTION_RADIUS_M) return fail('Tienes que estar allí en persona.')
+        const { id, kind, name, lat, lng } = poi
+        set({ suppliers: { ...s.suppliers, [id]: { poi: { id, kind, name, lat, lng }, level: 1, order: null } } })
+        return done('Contacto establecido. Ya puedes pedirle mercancía desde el HQ.')
+      },
+
+      orderSupply: (poiId, item, qty) => {
+        get().sync()
+        const s = get()
+        const inv = useInventoryStore.getState()
+        const supplier = s.suppliers[poiId]
+        if (!supplier) return fail('Primero hay que ir en persona a establecer contacto.')
+        if (!s.hq) return fail('Coloca antes tu Cuartel General: allí llega la mercancía.')
+        if (s.carriers.length === 0) return fail('Contrata un transportista en el HQ: sin él no llega nada.')
+        const free = storageCap(s.storageLevel) - carried(s.storage) - pending(s.suppliers, s.carriers)
+        const now = Date.now()
+        const plan = planOrder(supplier, item, qty, free, inv.dirtyCash, now)
+        if (!plan.ok) return fail(plan.reason)
+        useInventoryStore.setState({ dirtyCash: inv.dirtyCash - plan.cost })
+        set({ suppliers: { ...s.suppliers, [poiId]: { ...supplier, order: plan.order } } })
+        return done(`Pedido: ${plan.qty} × ${ITEMS[item].label} por ${plan.cost}. Lo preparan y un transportista lo recoge.`)
+      },
+
+      upgradeSupplier: (poiId) => {
+        const s = get()
+        const inv = useInventoryStore.getState()
+        const supplier = s.suppliers[poiId]
+        if (!supplier) return fail('No es tu proveedor.')
+        const pos = usePlayerStore.getState().position
+        const remote = !pos || haversine(pos, supplier.poi) > INTERACTION_RADIUS_M
+        const cost = supplierUpgradeCost(supplier.level, remote)
+        if (cost === null) return fail('Ya está al máximo.')
+        if (inv.cleanCash < cost) return fail(`Cuesta ${cost} limpios${remote ? ' por teléfono' : ''}.`)
+        useInventoryStore.setState({ cleanCash: inv.cleanCash - cost })
+        set({ suppliers: { ...s.suppliers, [poiId]: { ...supplier, level: supplier.level + 1 } } })
+        return done(`Proveedor al nivel ${supplier.level + 1}${remote ? ' (negociado por teléfono)' : ''}.`)
+      },
+
+      hireCarrier: () => {
+        const s = get()
+        const inv = useInventoryStore.getState()
+        if (s.carriers.length >= CARRIER_SLOTS[s.hqLevel - 1]) return fail('No tienes más huecos. Mejora el HQ.')
+        if (inv.cleanCash < CARRIER_HIRE_COST) return fail(`Contratar cuesta ${CARRIER_HIRE_COST} limpios.`)
+        useInventoryStore.setState({ cleanCash: inv.cleanCash - CARRIER_HIRE_COST })
+        set({ carriers: [...s.carriers, newCarrier(`t${Date.now()}`, Date.now())] })
+        return done('Transportista contratado.')
+      },
+
+      upgradeCarrier: (id) => {
+        const s = get()
+        const inv = useInventoryStore.getState()
+        const c = s.carriers.find((x) => x.id === id)
+        if (!c) return fail('No existe ese transportista.')
+        if (c.level >= SUPPLY_MAX_LEVEL) return fail('Ya está al máximo.')
+        const cost = CARRIER_UPGRADE_COSTS[c.level]
+        if (inv.cleanCash < cost) return fail(`Cuesta ${cost} limpios.`)
+        useInventoryStore.setState({ cleanCash: inv.cleanCash - cost })
+        set({ carriers: s.carriers.map((x) => (x.id === id ? { ...x, level: x.level + 1 } : x)) })
+        return done(`Transportista al nivel ${c.level + 1}.`)
+      },
+
       markVisited: (pois) => {
         const { visited } = get()
         const fresh = pois.filter((p) => !visited[p.id])
@@ -228,7 +319,19 @@ export const useBaseStore = create<BaseState>()(
           launderAt: s.launderAt,
         }
         const after = syncIdle(before, Date.now())
-        set({ storage: after.storage, job: after.job, dealersAt: after.dealersAt, launderAt: after.launderAt })
+        const supply = advanceSupply(
+          { suppliers: s.suppliers, carriers: s.carriers, storage: after.storage, storageCap: storageCap(s.storageLevel) },
+          Date.now(),
+        )
+        set({
+          storage: supply.storage,
+          suppliers: supply.suppliers,
+          carriers: supply.carriers,
+          job: after.job,
+          dealersAt: after.dealersAt,
+          launderAt: after.launderAt,
+        })
+        if (supply.delivered > 0) useInventoryStore.getState().setNotice(`Llegó un envío al HQ: ${supply.delivered} unidades.`)
         if (after.dirtyCash !== inv.dirtyCash || after.cleanCash !== inv.cleanCash)
           useInventoryStore.setState({ dirtyCash: after.dirtyCash, cleanCash: after.cleanCash })
       },
