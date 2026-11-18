@@ -2,6 +2,10 @@ import { cellToBoundary, gridDisk, latLngToCell } from 'h3-js'
 import { get, set } from 'idb-keyval'
 import type { LatLng } from '../types'
 import type { CachedCell, Poi, PoiKind } from '../types/poi'
+import { fillSharedCell, readSharedCell, sharedCacheEnabled, type SharedCell } from './poiCache'
+
+/** Una celda de la caché compartida se considera fresca este tiempo (la función usa el mismo) */
+const SHARED_FRESH_MS = 14 * 24 * 60 * 60 * 1000
 
 /** Resolución H3: ~0.7 km² por celda (la misma que el territorio de la Fase 2). */
 export const H3_RES = 8
@@ -169,6 +173,25 @@ export function cellsAround(pos: LatLng): string[] {
   return [center, ...gridDisk(center, 1).filter((c) => c !== center)]
 }
 
+/**
+ * Orden de fuentes: caché compartida (Supabase, lectura directa) → función de borde que la rellena
+ * desde Overpass → Overpass directo desde el móvil como último recurso.
+ */
+async function fetchFromNetwork(cell: string): Promise<Poi[]> {
+  if (sharedCacheEnabled) {
+    let shared: SharedCell | null = null
+    try {
+      shared = await readSharedCell(cell)
+      if (shared && Date.now() - shared.fetchedAt < SHARED_FRESH_MS) return shared.pois
+      shared = (await fillSharedCell(cell).catch(() => null)) ?? shared
+      if (shared) return shared.pois // si Overpass falló, la función devuelve lo caducado
+    } catch {
+      /* Supabase caído: seguimos con Overpass directo */
+    }
+  }
+  return parseElements(await hedgedQuery(buildCellQuery(cell)), new Set([cell]))
+}
+
 export interface LoadResult {
   /** Celdas que no se pudieron refrescar (se reintentarán más tarde) */
   failedCells: string[]
@@ -206,8 +229,7 @@ export async function loadPoisAround(
   // 2) Red: solo lo que falta o caducó (AGENTS §3: nunca en cada lectura de GPS)
   const fetchCell = async (c: string): Promise<void> => {
     try {
-      const elements = await hedgedQuery(buildCellQuery(c))
-      const pois = parseElements(elements, new Set([c]))
+      const pois = await fetchFromNetwork(c)
       await writeCache(c, { fetchedAt: Date.now(), pois })
       onPois(pois)
       haveData.add(c)
