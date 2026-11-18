@@ -4,10 +4,10 @@ import type { ItemId } from './items'
 export const MAX_LEVEL = 3
 
 /** Coste en Dinero Limpio para llegar al nivel N (índice N-1). */
-export const HQ_COSTS = [0, 300, 1200]
-export const LAB_COSTS = [0, 400, 1500]
-export const STORAGE_COSTS = [0, 250, 900]
-export const BACKPACK_COSTS = [0, 200, 800]
+export const HQ_COSTS = [0, 1200, 4800]
+export const LAB_COSTS = [0, 1600, 6000]
+export const STORAGE_COSTS = [0, 1000, 3600]
+export const BACKPACK_COSTS = [0, 800, 3200]
 
 export const STORAGE_CAPACITY = [100, 250, 600]
 export const BACKPACK_CAPACITY = [30, 60, 120]
@@ -28,13 +28,14 @@ export const UPGRADE_INFO: Record<UpgradeKind, { label: string; costs: number[] 
 export const DEALER_HIRE_COST = 150
 export const BUSINESS_BASE_COST = 200
 /** Cada negocio tapadera adicional cuesta más */
-export const businessCost = (owned: number): number => BUSINESS_BASE_COST * (owned + 1)
+/** El primero es barato (arranque); los siguientes escalan fuerte porque el blanqueo es el cuello de botella */
+export const businessCost = (owned: number): number => (owned === 0 ? BUSINESS_BASE_COST : BUSINESS_BASE_COST * (owned + 1) * 4)
 
 /** Mover el HQ es gratis cada 7 días (GDD §5) */
 export const HQ_MOVE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000
 
-/** Dinero limpio con el que empieza el jugador (para comprar el primer negocio tapadera) */
-export const START_CLEAN_CASH = 350
+/** Dinero limpio inicial: justo un negocio tapadera + un transportista + un camello (con menos hay bloqueo: sin negocio no entra limpio) */
+export const START_CLEAN_CASH = 550
 
 // --- Idle ---
 /** Un camello vende 1 unidad cada tanto */

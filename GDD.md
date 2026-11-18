@@ -30,7 +30,7 @@
 | Etiqueta OSM | Tipo de Lugar Real | Rol en el Juego | Mecánica Especial |
 | :--- | :--- | :--- | :--- |
 | `landuse=industrial` | Polígonos / Fábricas | **Almacén Clandestino** | Punto de Suministro: precursores al por mayor a bajo precio (todos los tipos). |
-| `amenity=pharmacy` | Farmacias | **Suministro Químico** | Punto de Suministro: solo ingredientes refinados (Químicos básicos), a precio normal. |
+| `amenity=pharmacy` | Farmacias | **Suministro Químico** | Punto de Suministro: vende todos los precursores, pero a precio normal (el almacén clandestino los da un 40 % más baratos). Así ninguna zona se queda sin abastecimiento. |
 | `leisure=park` | Parques y Plazas | **Punto de Menudeo** | Venta rápida, bajo riesgo, margen de beneficio medio. |
 | `amenity=bar` / `nightclub` | Bares y Discotecas | **Zona VIP** | Alta demanda y precio x2 entre las 20:00 y las 04:00. |
 | `amenity=police` | Comisarías | **Zona Caliente** | Aumenta el medidor de "Búsqueda" (Heat). Si llega al 100%, pierdes la mercancía que llevas encima. |
@@ -68,9 +68,44 @@ El jugador no puede ir cargando por la calle todo lo que necesita (la mochila es
 | **Punto de Suministro** | Tiempo de preparación y cantidad máxima por pedido | 6 min · 20 uds | 3 min · 50 uds | 1 min · 120 uds |
 | **Transportista** | Duración del viaje y capacidad por viaje | 10 min · 20 uds | 5 min · 50 uds | 2 min · 120 uds |
 
-- **Mejorar un Punto de Suministro:** se negocia **en persona** (hay que ir al sitio) al precio normal, o **por teléfono** (desde cualquier lugar) a un precio **x3**. Se paga con **Dinero Limpio**: Nivel 2 = $150, Nivel 3 = $500 (en persona).
+- **Mejorar un Punto de Suministro:** se negocia **en persona** (hay que ir al sitio) al precio normal, o **por teléfono** (desde cualquier lugar) a un precio **x3**. Se paga con **Dinero Limpio**: Nivel 2 = $600, Nivel 3 = $2.000 (en persona).
 - **Contratar y mejorar Transportistas:** se reclutan igual que los Camellos (coste en Dinero Limpio, huecos limitados por el nivel del HQ) y se mejoran con Dinero Limpio. Los transportistas se gestionan desde el HQ, sin ir a ningún sitio.
 - **Cuello de botella:** el ritmo de abastecimiento lo marca el eslabón más lento (preparación, número de transportistas o capacidad de viaje), así que conviene mejorar toda la cadena.
+
+---
+
+## 4 ter. Balance y ritmo de progresión (provisional)
+
+Cifras de partida: **$550 limpios** (justo un negocio tapadera + un transportista + un camello; con menos el jugador se bloquea porque sin negocio no entra Dinero Limpio) y $100 sucios.
+
+**Costes en Dinero Limpio**
+
+| Concepto | Nivel 2 | Nivel 3 |
+| :--- | :--- | :--- |
+| Cuartel General | $1.200 | $4.800 |
+| Laboratorio | $1.600 | $6.000 |
+| Almacén | $1.000 | $3.600 |
+| Mochila / vehículo | $800 | $3.200 |
+| Punto de Suministro / Transportista | $600 | $2.000 |
+
+Camello $150 · Transportista $200 · Negocio tapadera: el primero $200 y luego $1.600, $2.400, $3.200…
+
+**Cuello de botella:** el blanqueo (cada negocio convierte 30 sucios/min en 24 limpios/min). La producción supera pronto lo que se puede blanquear, por eso los negocios adicionales escalan fuerte.
+
+**Cronograma de un jugador atento** (simulado, compra en cuanto puede y vende a mano ~60 uds/día; en la práctica, cuenta el doble):
+
+| Momento | Hito |
+| :--- | :--- |
+| Minuto 0 | Primer negocio, transportista y camello. Empieza la Hierba Risona. |
+| Primera hora | Segundo camello y transportista al nivel 2. |
+| Horas 2-5 | HQ y laboratorio al nivel 2 (Laboratorio Básico), segundo negocio, camellos 3 y 4, almacén al nivel 2. |
+| Día 1-2 | Reputación 100 vendiendo a mano: se desbloquea el **Cristal Azul**. |
+| Horas 6-12 | Segundo transportista, HQ y laboratorio al nivel 3, camellos 5 y 6, negocios 3-5. Toda la infraestructura mejorada. |
+| Día 4 | Reputación 500: se desbloquea el **Polvo Estelar**. |
+
+La reputación solo sube con ventas hechas a mano (1 / 3 / 8 por unidad según producto), así que **sale a la calle** quien quiere avanzar de Tier; con 30 uds/día el Cristal llega al día 3 y el Polvo al día 8.
+
+**Pendientes de balance:** pasadas las ~12 h todo está mejorado y el dinero se acumula sin uso. Hacen falta más sumideros (más niveles, prestigio, expansión territorial de la Fase 2). Valorar también que los camellos den algo de reputación (p. ej. 25 %) para que quien juega pasivo no se quede estancado en el Tier 1.
 
 ---
 

@@ -48,7 +48,8 @@ export function offersFor(kind: PoiKind): { buy: ItemId[]; sell: ItemId[] } {
     case 'warehouse':
       return { buy: PRECURSORS, sell: [] }
     case 'pharmacy':
-      return { buy: ['quimicos'], sell: [] }
+      // Sin almacenes cerca el juego no puede quedarse bloqueado: la farmacia vende todo, pero a precio normal
+      return { buy: PRECURSORS, sell: [] }
     case 'park':
     case 'nightlife':
       return { buy: [], sell: PRODUCTS }

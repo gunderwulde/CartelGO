@@ -20,7 +20,7 @@ export const SUPPLIER_LEVELS: SupplierLevel[] = [
 ]
 
 /** Dinero Limpio para llegar al nivel N (índice N-1) negociando en persona. */
-export const SUPPLIER_UPGRADE_COSTS = [0, 150, 500]
+export const SUPPLIER_UPGRADE_COSTS = [0, 600, 2000]
 /** Negociar por teléfono multiplica el precio de la mejora */
 export const REMOTE_UPGRADE_FACTOR = 3
 
@@ -37,6 +37,6 @@ export const CARRIER_LEVELS: CarrierLevel[] = [
   { tripMs: 2 * 60_000, capacity: 120 },
 ]
 export const CARRIER_HIRE_COST = 200
-export const CARRIER_UPGRADE_COSTS = [0, 150, 500]
+export const CARRIER_UPGRADE_COSTS = [0, 600, 2000]
 /** Transportistas máximos por nivel de HQ */
 export const CARRIER_SLOTS = [1, 2, 3]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CARRIER_LEVELS, SUPPLIER_LEVELS } from '../data/supply'
+import { CARRIER_LEVELS, SUPPLIER_LEVELS, SUPPLIER_UPGRADE_COSTS } from '../data/supply'
 import {
   advanceSupply,
   pending,
@@ -44,8 +44,9 @@ describe('planOrder', () => {
     expect(w.ok && p.ok && w.cost < p.cost).toBe(true)
   })
 
-  it('la farmacia solo vende químicos y no admite dos pedidos a la vez', () => {
-    expect(planOrder(supplier('p', 'pharmacy'), 'baterias', 10, 100, 1000, T0).ok).toBe(false)
+  it('la farmacia vende todos los precursores, a precio normal, y no admite dos pedidos a la vez', () => {
+    expect(planOrder(supplier('p', 'pharmacy'), 'baterias', 10, 100, 1000, T0).ok).toBe(true)
+    expect(planOrder(supplier('p', 'pharmacy'), 'hierba', 10, 100, 1000, T0).ok).toBe(false)
     const busy = { ...supplier('w'), order: { item: 'quimicos' as const, qty: 5, readyAt: T0 } }
     expect(planOrder(busy, 'quimicos', 5, 100, 1000, T0).ok).toBe(false)
   })
@@ -58,8 +59,8 @@ describe('planOrder', () => {
 
 describe('supplierUpgradeCost', () => {
   it('por teléfono cuesta el triple y en el máximo no hay mejora', () => {
-    expect(supplierUpgradeCost(1, false)).toBe(150)
-    expect(supplierUpgradeCost(1, true)).toBe(450)
+    expect(supplierUpgradeCost(1, false)).toBe(SUPPLIER_UPGRADE_COSTS[1])
+    expect(supplierUpgradeCost(1, true)).toBe(SUPPLIER_UPGRADE_COSTS[1] * 3)
     expect(supplierUpgradeCost(3, false)).toBeNull()
   })
 })
