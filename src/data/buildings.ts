@@ -26,6 +26,25 @@ export const UPGRADE_INFO: Record<UpgradeKind, { label: string; costs: number[] 
 }
 
 export const DEALER_HIRE_COST = 150
+
+// --- Camellos: lealtad, robo y adulteración (GDD §4 quater) ---
+/** Cada camello tiene una fiabilidad 0-100. Prob. de cada sablazo por venta = BASE × (1 - fiabilidad/100) */
+export const DEALER_THEFT_BASE = 0.12
+export const DEALER_CUT_BASE = 0.1
+/** Fracción de la venta que se queda el camello cuando roba */
+export const DEALER_THEFT_SHARE = 0.4
+/** Fracción de la venta que cobras cuando el camello adultera el producto */
+export const DEALER_CUT_PAYOUT = 0.7
+/** Una adulteración sube el Heat y quita reputación */
+export const DEALER_CUT_HEAT = 5
+export const DEALER_CUT_REP_LOSS = 1
+/** Los camellos dan esta parte de la reputación por unidad vendida (la venta a mano da el 100 %) */
+export const DEALER_REP_SHARE = 0.25
+/** Ventas necesarias para conocer de verdad a un camello (hasta entonces su fiabilidad es un misterio) */
+export const DEALER_REVEAL_SALES = 20
+/** Prima de lealtad: se paga en Dinero Sucio y sube la fiabilidad */
+export const DEALER_BONUS_COST = 200
+export const DEALER_BONUS_HONESTY = 15
 export const BUSINESS_BASE_COST = 200
 /** Cada negocio tapadera adicional cuesta más */
 /** El primero es barato (arranque); los siguientes escalan fuerte porque el blanqueo es el cuello de botella */

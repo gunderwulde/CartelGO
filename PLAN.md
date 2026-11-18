@@ -121,6 +121,16 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 
 ---
 
+## Sprint 8 - Camellos con riesgo (diseño en GDD §4 quater)
+
+- [x] Los camellos se contratan en persona en el parque/bar y quedan asociados a ese punto.
+- [x] Fiabilidad oculta por camello; robo y adulteración deterministas (hash), con efecto en dinero, Heat y reputación.
+- [x] Ficha por camello (ventas, cobrado, perdido, fiabilidad revelada tras 20 ventas) e informe de sucesos en el HQ.
+- [x] Prima (Dinero Sucio) para subir fiabilidad y despedir camellos. Los camellos dan el 25 % de la reputación.
+- [x] Guardado local y en la nube (campos opcionales). Tests del motor.
+
+---
+
 ## Fase 2 (fuera del MVP) - Multijugador
 
 - [ ] Supabase (PostgreSQL + PostGIS), auth.

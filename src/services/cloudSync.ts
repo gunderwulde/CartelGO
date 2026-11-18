@@ -88,6 +88,7 @@ export function exportSave(): SaveBlob {
       storage: b.storage,
       job: b.job,
       dealers: b.dealers,
+      dealerLog: b.dealerLog,
       businesses: b.businesses,
       visited: b.visited,
       suppliers: b.suppliers,
@@ -108,7 +109,7 @@ const hqCell = (): string | null => {
 function applySave(blob: SaveBlob): void {
   useInventoryStore.setState({ ...blob.inventory })
   // Las partidas anteriores al Sprint 7 no traen la cadena de suministro
-  useBaseStore.setState({ suppliers: {}, carriers: [], ...blob.base })
+  useBaseStore.setState({ suppliers: {}, carriers: [], dealerLog: [], ...blob.base })
 }
 
 // ---------- Estado interno ----------

@@ -1,5 +1,5 @@
 import type { VisitedPoi } from '../store/baseStore'
-import type { Business, Dealer, Job } from './idleEngine'
+import type { Business, Dealer, DealerEvent, Job } from './idleEngine'
 import type { Carrier, Suppliers } from './supplyEngine'
 import type { DailyLimits, Inventory } from './tradeEngine'
 
@@ -25,6 +25,8 @@ export interface SaveBlob {
     storage: Inventory
     job: Job | null
     dealers: Dealer[]
+    /** Informe de camellos; ausente en partidas anteriores */
+    dealerLog?: DealerEvent[]
     businesses: Business[]
     visited: Record<string, VisitedPoi>
     /** Cadena de suministro; ausente en partidas guardadas antes del Sprint 7 */

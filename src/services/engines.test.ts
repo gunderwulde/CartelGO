@@ -87,7 +87,7 @@ describe('heat', () => {
   })
 })
 
-import { syncIdle, type IdleState } from './idleEngine'
+import { honestyOf, rollHonesty, syncIdle, type IdleState } from './idleEngine'
 
 const T0 = 1_000_000_000_000
 const idle = (over: Partial<IdleState> = {}): IdleState => ({
@@ -130,7 +130,7 @@ describe('laboratorio (offline)', () => {
 })
 
 describe('camellos (offline)', () => {
-  const dealer = { id: 'd1', poiId: 'way/1', kind: 'park' as const, name: null }
+  const dealer = { id: 'd1', poiId: 'way/1', kind: 'park' as const, name: null, honesty: 100 }
   it('venden lo más caro primero y cobran su parte', () => {
     const s = idle({ dealers: [dealer], storage: { hierba: 5, cristal: 1 } })
     const r = syncIdle(s, T0 + 60_000) // 2 ticks
@@ -145,6 +145,69 @@ describe('camellos (offline)', () => {
     const s = idle({ dealers: [dealer], storage: { hierba: 100000 } })
     const r = syncIdle(s, T0 + 100 * 3_600_000)
     expect(r.dirtyCash).toBe(960 * Math.round(30 * 0.8))
+  })
+})
+
+describe('camellos: robo y adulteración', () => {
+  const shady = (honesty: number) => ({ id: 'd2', poiId: 'way/2', kind: 'park' as const, name: 'Parque Sol', honesty })
+  const run = (honesty: number) =>
+    syncIdle(idle({ dealers: [shady(honesty)], storage: { hierba: 100000 } }), T0 + 8 * 3_600_000)
+
+  it('un camello 100 % fiable nunca roba ni adultera', () => {
+    const r = run(100)
+    expect(r.events).toHaveLength(0)
+    expect(r.dealers[0].stolen ?? 0).toBe(0)
+    expect(r.heatDelta).toBe(0)
+  })
+
+  it('uno poco fiable roba y adultera, y queda en el libro de cuentas', () => {
+    const r = run(0)
+    const d = r.dealers[0]
+    expect(d.sold).toBe(960)
+    expect(r.events.some((e) => e.kind === 'theft')).toBe(true)
+    expect(r.events.some((e) => e.kind === 'cut')).toBe(true)
+    expect(d.cutUnits ?? 0).toBeGreaterThan(0)
+    expect(d.stolen ?? 0).toBeGreaterThan(0)
+    // lo que cobras + lo que te quitó = lo que habrías cobrado
+    expect((d.earned ?? 0) + (d.stolen ?? 0)).toBe(960 * Math.round(30 * 0.8))
+    expect(r.dirtyCash).toBe(d.earned)
+  })
+
+  it('las adulteraciones suben el Heat y bajan la reputación', () => {
+    const r = run(0)
+    const cuts = r.events.filter((e) => e.kind === 'cut').length
+    expect(cuts).toBeGreaterThan(0)
+    expect(r.heatDelta).toBeGreaterThan(0)
+  })
+
+  it('cuanto más fiable, menos se queda', () => {
+    expect(run(20).dealers[0].stolen ?? 0).toBeGreaterThan(run(80).dealers[0].stolen ?? 0)
+  })
+
+  it('es determinista: el mismo tramo de tiempo da siempre lo mismo', () => {
+    expect(run(30).dealers[0].stolen).toBe(run(30).dealers[0].stolen)
+    expect(run(30).events).toEqual(run(30).events)
+  })
+
+  it('poner al día de golpe o a trozos da el mismo resultado', () => {
+    const s = idle({ dealers: [shady(30)], storage: { hierba: 100000 } })
+    const whole = syncIdle(s, T0 + 2 * 3_600_000)
+    let step = s
+    for (let t = T0 + 600_000; t <= T0 + 2 * 3_600_000; t += 600_000) step = syncIdle(step, t)
+    expect(step.dirtyCash).toBe(whole.dirtyCash)
+    expect(step.dealers[0].stolen).toBe(whole.dealers[0].stolen)
+  })
+
+  it('los camellos dan el 25 % de la reputación por unidad', () => {
+    const r = syncIdle(idle({ dealers: [{ ...shady(100) }], storage: { hierba: 10 } }), T0 + 60_000) // 2 ventas de hierba
+    expect(r.repDelta).toBeCloseTo(2 * 1 * 0.25)
+  })
+
+  it('un camello antiguo sin fiabilidad guardada recibe una determinista', () => {
+    expect(honestyOf({ id: 'x', poiId: 'p', kind: 'park', name: null })).toBe(honestyOf({ id: 'x', poiId: 'p', kind: 'park', name: null }))
+    const h = rollHonesty('cualquiera')
+    expect(h).toBeGreaterThanOrEqual(30)
+    expect(h).toBeLessThanOrEqual(90)
   })
 })
 

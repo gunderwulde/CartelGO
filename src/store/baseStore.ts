@@ -3,6 +3,8 @@ import { createJSONStorage, persist, type StateStorage } from 'zustand/middlewar
 import { del, get as idbGet, set as idbSet } from 'idb-keyval'
 import {
   BACKPACK_CAPACITY,
+  DEALER_BONUS_COST,
+  DEALER_BONUS_HONESTY,
   DEALER_HIRE_COST,
   DEALER_SLOTS,
   HQ_MOVE_COOLDOWN_MS,
@@ -24,7 +26,17 @@ import {
 import { ITEMS, type ItemId } from '../data/items'
 import type { LatLng } from '../types'
 import type { Poi } from '../types/poi'
-import { syncIdle, batchDurationMs, type Business, type Dealer, type IdleState, type Job } from '../services/idleEngine'
+import {
+  syncIdle,
+  batchDurationMs,
+  honestyOf,
+  rollHonesty,
+  type Business,
+  type Dealer,
+  type DealerEvent,
+  type IdleState,
+  type Job,
+} from '../services/idleEngine'
 import { carried, type Inventory } from '../services/tradeEngine'
 import {
   advanceSupply,
@@ -36,6 +48,7 @@ import {
   type Suppliers,
 } from '../services/supplyEngine'
 import { haversine, INTERACTION_RADIUS_M } from '../services/geoService'
+import { HEAT_MAX } from '../data/balance'
 import { useInventoryStore } from './inventoryStore'
 import { usePlayerStore } from './playerStore'
 
@@ -65,6 +78,8 @@ interface BaseState {
   storage: Inventory
   job: Job | null
   dealers: Dealer[]
+  /** Informe de sucesos de los camellos (robos y adulteraciones), el más reciente primero */
+  dealerLog: DealerEvent[]
   businesses: Business[]
   visited: Record<string, VisitedPoi>
   /** Puntos de suministro con contacto establecido (GDD §4 bis) */
@@ -79,6 +94,7 @@ interface BaseState {
   startJob: (recipe: RecipeId, batches: number) => ActionResult
   hireDealer: (poi: VisitedPoi) => ActionResult
   fireDealer: (id: string) => void
+  bonusDealer: (id: string) => ActionResult
   buyBusiness: (poi: VisitedPoi) => ActionResult
   upgrade: (kind: UpgradeKind) => ActionResult
   establishContact: (poi: Poi) => ActionResult
@@ -95,6 +111,23 @@ interface BaseState {
 const levelOf = (s: BaseState, kind: UpgradeKind): number =>
   ({ hq: s.hqLevel, lab: s.labLevel, storage: s.storageLevel, backpack: s.backpackLevel })[kind]
 
+const DEALER_LOG_MAX = 40
+
+const newDealer = (poi: VisitedPoi): Dealer => {
+  const id = `d${Date.now()}`
+  return { id, poiId: poi.id, kind: poi.kind as 'park' | 'nightlife', name: poi.name, honesty: rollHonesty(id), sold: 0, earned: 0, stolen: 0, cutUnits: 0 }
+}
+
+/** Avisa en pantalla de lo que han hecho los camellos mientras tanto */
+function reportDealers(events: DealerEvent[]): void {
+  if (events.length === 0) return
+  const stolen = events.reduce((a, e) => a + e.amount, 0)
+  const cuts = events.filter((e) => e.kind === 'cut').length
+  useInventoryStore
+    .getState()
+    .setNotice(`Tus camellos te han quitado ${stolen}${cuts > 0 ? ` y han adulterado el producto ${cuts} vez/veces (¡más Heat!)` : ''}. Mira el informe en el HQ.`)
+}
+
 export const storageCap = (level: number): number => STORAGE_CAPACITY[level - 1]
 export const isNearHq = (hq: Hq | null, pos: LatLng | null): boolean =>
   !!hq && !!pos && haversine(hq, pos) <= INTERACTION_RADIUS_M
@@ -110,6 +143,7 @@ export const useBaseStore = create<BaseState>()(
       storage: {},
       job: null,
       dealers: [],
+      dealerLog: [],
       businesses: [],
       visited: {},
       suppliers: {},
@@ -175,16 +209,30 @@ export const useBaseStore = create<BaseState>()(
         const inv = useInventoryStore.getState()
         if (poi.kind !== 'park' && poi.kind !== 'nightlife') return fail('Los camellos solo trabajan parques y bares.')
         if (s.dealers.some((d) => d.poiId === poi.id)) return fail('Ya hay un camello ahí.')
+        const here = usePlayerStore.getState().position
+        if (!here || haversine(here, poi) > INTERACTION_RADIUS_M) return fail('Tienes que estar allí en persona para contratarlo.')
         if (s.dealers.length >= DEALER_SLOTS[s.hqLevel - 1]) return fail('No tienes más huecos. Mejora el HQ.')
         if (inv.cleanCash < DEALER_HIRE_COST) return fail(`Contratar cuesta $${DEALER_HIRE_COST} limpios.`)
         useInventoryStore.setState({ cleanCash: inv.cleanCash - DEALER_HIRE_COST })
         set({
-          dealers: [...s.dealers, { id: `d${Date.now()}`, poiId: poi.id, kind: poi.kind, name: poi.name }],
+          dealers: [...s.dealers, newDealer(poi)],
           dealersAt: s.dealers.length === 0 ? Date.now() : s.dealersAt,
         })
         return done('Camello contratado.')
       },
       fireDealer: (id) => set((s) => ({ dealers: s.dealers.filter((d) => d.id !== id) })),
+
+      bonusDealer: (id) => {
+        const s = get()
+        const inv = useInventoryStore.getState()
+        const d = s.dealers.find((x) => x.id === id)
+        if (!d) return fail('No existe ese camello.')
+        if (honestyOf(d) >= 100) return fail('Ya es de total confianza.')
+        if (inv.dirtyCash < DEALER_BONUS_COST) return fail(`La prima cuesta ${DEALER_BONUS_COST} sucios.`)
+        useInventoryStore.setState({ dirtyCash: inv.dirtyCash - DEALER_BONUS_COST })
+        set({ dealers: s.dealers.map((x) => (x.id === id ? { ...x, honesty: Math.min(100, honestyOf(x) + DEALER_BONUS_HONESTY) } : x)) })
+        return done('Prima pagada: ahora te lo piensa dos veces antes de rascar.')
+      },
 
       buyBusiness: (poi) => {
         const s = get()
@@ -319,6 +367,7 @@ export const useBaseStore = create<BaseState>()(
           launderAt: s.launderAt,
         }
         const after = syncIdle(before, Date.now())
+        reportDealers(after.events)
         const supply = advanceSupply(
           { suppliers: s.suppliers, carriers: s.carriers, storage: after.storage, storageCap: storageCap(s.storageLevel) },
           Date.now(),
@@ -328,10 +377,14 @@ export const useBaseStore = create<BaseState>()(
           suppliers: supply.suppliers,
           carriers: supply.carriers,
           job: after.job,
+          dealers: after.dealers,
+          dealerLog: after.events.length > 0 ? [...after.events.slice().reverse(), ...s.dealerLog].slice(0, DEALER_LOG_MAX) : s.dealerLog,
+          reputation: Math.max(0, s.reputation + after.repDelta),
           dealersAt: after.dealersAt,
           launderAt: after.launderAt,
         })
         if (supply.delivered > 0) useInventoryStore.getState().setNotice(`Llegó un envío al HQ: ${supply.delivered} unidades.`)
+        if (after.heatDelta > 0) useInventoryStore.setState({ heat: Math.min(HEAT_MAX, inv.heat + after.heatDelta) })
         if (after.dirtyCash !== inv.dirtyCash || after.cleanCash !== inv.cleanCash)
           useInventoryStore.setState({ dirtyCash: after.dirtyCash, cleanCash: after.cleanCash })
       },

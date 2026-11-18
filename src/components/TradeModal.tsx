@@ -5,7 +5,8 @@ import { POI_KINDS } from '../data/poiKinds'
 import { PoiBadge } from './PoiBadge'
 import { useInventoryStore } from '../store/inventoryStore'
 import { useBaseStore } from '../store/baseStore'
-import { businessCost, purityMult } from '../data/buildings'
+import { DEALER_HIRE_COST, DEALER_SLOTS, DEALER_REVEAL_SALES, businessCost, purityMult } from '../data/buildings'
+import { honestyOf } from '../services/idleEngine'
 import { play } from '../services/sound'
 import { carried, offersFor, unitPrice } from '../services/tradeEngine'
 import { SupplierCard } from './SupplyCards'
@@ -25,6 +26,9 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
   const labLevel = useBaseStore((s) => s.labLevel)
   const businesses = useBaseStore((s) => s.businesses)
   const supplier = useBaseStore((s) => s.suppliers[poi.id])
+  const dealers = useBaseStore((s) => s.dealers)
+  const hqLevel = useBaseStore((s) => s.hqLevel)
+  const dealer = dealers.find((d) => d.poiId === poi.id)
   const cleanCash = useInventoryStore((s) => s.cleanCash)
   const mult = purityMult(labLevel)
 
@@ -109,6 +113,34 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
               </button>
             </div>
           ))}
+        {(poi.kind === 'park' || poi.kind === 'nightlife') && (
+          <div className="border-t-4 border-black pt-2">
+            {dealer ? (
+              <p className="text-sm font-bold">
+                <span className="font-black">Tu camello trabaja aquí.</span> Ventas {dealer.sold ?? 0} · cobrado ${dealer.earned ?? 0} · fiabilidad{' '}
+                {(dealer.sold ?? 0) >= DEALER_REVEAL_SALES ? honestyOf(dealer) : '?'}
+                {(dealer.stolen ?? 0) > 0 ? ` · te ha quitado ${dealer.stolen}` : ''}. Gestiónalo en el HQ.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm font-bold mb-2">
+                  Contrata un camello aquí: vende solo y queda asignado a este sitio. Camellos {dealers.length}/{DEALER_SLOTS[hqLevel - 1]}. Ojo: no todos son de fiar.
+                </p>
+                <button
+                  className="cartoon-btn px-3 py-2 text-sm"
+                  disabled={blocked}
+                  onClick={() => {
+                    const r = useBaseStore.getState().hireDealer({ id: poi.id, kind: poi.kind, name: poi.name, lat: poi.lat, lng: poi.lng })
+                    play(r.ok ? 'level' : 'error')
+                    setNotice(r.ok ? r.message : r.reason)
+                  }}
+                >
+                  Contratar camello ${DEALER_HIRE_COST}
+                </button>
+              </>
+            )}
+          </div>
+        )}
         {poi.kind === 'cover' && (
           <div>
             {businesses.some((b) => b.poiId === poi.id) ? (

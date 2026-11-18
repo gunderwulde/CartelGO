@@ -20,7 +20,7 @@
 ### Fase B: En el Cuartel General (Gestión Idle)
 1. Desde casa (o cualquier lugar), el jugador abre la vista de su **Cuartel General (HQ)**.
 2. **Producción:** Asigna *Precursores* a los **Laboratorios** para cocinar productos de mayor pureza y valor de forma pasiva.
-3. **Automatización:** Contrata *Camellos (NPCs)* y los asigna a POIs ya descubiertos para que generen ingresos pasivos constantes. Contrata *Transportistas* para que recojan los pedidos en los Puntos de Suministro y los lleven al almacén del HQ.
+3. **Automatización:** Contrata *Camellos (NPCs)* **en persona, en el parque o bar** donde van a trabajar: quedan asignados a ese punto y venden solos (pueden robar o adulterar, ver §4 quater). Contrata *Transportistas* para que recojan los pedidos en los Puntos de Suministro y los lleven al almacén del HQ.
 4. **Blanqueo:** Envía **Dinero Sucio** a sus *Negocios Tapadera* para convertirlo en **Dinero Limpio**, necesario para expandir infraestructuras.
 
 ---
@@ -105,7 +105,28 @@ Camello $150 · Transportista $200 · Negocio tapadera: el primero $200 y luego 
 
 La reputación solo sube con ventas hechas a mano (1 / 3 / 8 por unidad según producto), así que **sale a la calle** quien quiere avanzar de Tier; con 30 uds/día el Cristal llega al día 3 y el Polvo al día 8.
 
-**Pendientes de balance:** pasadas las ~12 h todo está mejorado y el dinero se acumula sin uso. Hacen falta más sumideros (más niveles, prestigio, expansión territorial de la Fase 2). Valorar también que los camellos den algo de reputación (p. ej. 25 %) para que quien juega pasivo no se quede estancado en el Tier 1.
+**Pendientes de balance:** pasadas las ~12 h todo está mejorado y el dinero se acumula sin uso. Hacen falta más sumideros (más niveles, prestigio, expansión territorial de la Fase 2). Los camellos dan el 25 % de la reputación por unidad vendida y la *Prima* (§4 quater) es un primer sumidero de Dinero Sucio.
+
+---
+
+## 4 quater. Camellos: lealtad, robo y adulteración
+
+Los camellos se contratan **en persona** en un Parque, Bar o Discoteca ($150 limpios, huecos según nivel del HQ) y **quedan asociados a ese punto**. Venden 1 unidad cada 30 s del almacén y cobran su parte (80 %).
+
+**Fiabilidad (0-100).** Cada camello tiene una fiabilidad oculta (30-90 al azar, determinista por punto). Cuanto más baja, más riesgo:
+
+| Suceso | Probabilidad por venta | Efecto |
+| :--- | :--- | :--- |
+| **Robo** | 12 % × (1 − fiabilidad/100) | Se queda el 40 % de lo que sacó la venta |
+| **Adulteración** | 10 % × (1 − fiabilidad/100) | Entrega el 70 % del importe, +5 Heat y −1 reputación (clientes quejosos) |
+
+**Cómo se ve.** Cada camello tiene su ficha (en el HQ y al abrir su sitio en el mapa): ventas, cobrado, dinero perdido por robos/adulteraciones y nº de adulteraciones. La **fiabilidad real se revela tras 20 ventas** (antes aparece «?»). Además hay un **Informe de sucesos** en el HQ con los últimos incidentes.
+
+**Qué se puede hacer.** Pagar una **Prima** ($200 Dinero Sucio, +15 fiabilidad; sumidero de dinero sucio) o **despedirlo**.
+
+**Reputación.** Los camellos aportan el 25 % de la reputación que daría la misma venta a mano.
+
+El cálculo es determinista (hash de camello + instante), así que sale igual offline y online y un servidor podrá reproducirlo (Fase 2).
 
 ---
 
@@ -114,7 +135,7 @@ La reputación solo sube con ventas hechas a mano (1 / 3 / 8 por unidad según p
 - **Mochila / Vehículo:** Define cuánta mercancía puede cargar el jugador físicamente mientras camina.
 - **Almacén:** Capacidad máxima de almacenamiento en la base.
 - **Laboratorio:** Transforma Precursores en Mercancía automáticamente (mejorable en velocidad y pureza).
-- **Red de Camellos:** Slots de NPCs que generan ingresos *Idle* en los barrios visitados.
+- **Red de Camellos:** Slots de NPCs, cada uno asignado al punto de venta donde se contrató; generan ingresos *Idle* con riesgo de robo/adulteración (ver §4 quater).
 - **Red de Transportistas:** NPCs que llevan los pedidos de los Puntos de Suministro al almacén del HQ (ver §4 bis). Sus huecos dependen del nivel del HQ.
 
 ---

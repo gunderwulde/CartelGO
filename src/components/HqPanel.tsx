@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { ITEMS, type ItemId } from '../data/items'
 import {
-  DEALER_HIRE_COST,
+  DEALER_BONUS_COST,
+  DEALER_REVEAL_SALES,
   DEALER_SLOTS,
   HQ_MOVE_COOLDOWN_MS,
   LAB_NAMES,
@@ -17,7 +18,7 @@ import { isNearHq, storageCap, useBaseStore, type ActionResult } from '../store/
 import { useInventoryStore } from '../store/inventoryStore'
 import { usePlayerStore } from '../store/playerStore'
 import { batchDurationMs } from '../services/idleEngine'
-import { haversine } from '../services/geoService'
+import { honestyOf } from '../services/idleEngine'
 import { carried } from '../services/tradeEngine'
 import { useNow } from '../services/useIdle'
 import { play, type Sfx } from '../services/sound'
@@ -129,36 +130,48 @@ export default function HqPanel({ onClose }: { onClose: () => void }) {
     </div>
   )
 
-  const taken = new Set(base.dealers.map((d) => d.poiId))
-  const candidates = Object.values(base.visited)
-    .filter((p) => (p.kind === 'park' || p.kind === 'nightlife') && !taken.has(p.id))
-    .map((p) => ({ p, d: position ? haversine(position, p) : 0 }))
-    .sort((a, b) => a.d - b.d)
-    .slice(0, 10)
   const dealers = (
     <div className="flex flex-col gap-2">
       <p className="text-sm font-black">
         Camellos {base.dealers.length}/{DEALER_SLOTS[base.hqLevel - 1]} · venden 1 unidad cada 30 s del almacén (cobran su parte)
       </p>
-      {base.dealers.map((d) => (
-        <div key={d.id} className="flex items-center gap-2">
-          <span className="flex-1 font-black truncate">{d.name ?? POI_KINDS[d.kind].label}</span>
-          <button className={`${btn} bg-white!`} onClick={() => base.fireDealer(d.id)}>
-            Despedir
-          </button>
-        </div>
-      ))}
-      <p className="text-sm font-black mt-2">Lugares que ya conoces</p>
-      {candidates.length === 0 && (
-        <p className="text-xs font-bold">Visita parques y bares (a menos de 150 m) para poder asignarles un camello.</p>
-      )}
-      {candidates.map(({ p }) => (
-        <div key={p.id} className="flex items-center gap-2">
-          <span className="flex-1 font-bold truncate">{p.name ?? POI_KINDS[p.kind].label}</span>
-          <button className={btn} onClick={() => report(base.hireDealer(p), 'level')}>
-            Contratar ${DEALER_HIRE_COST}
-          </button>
-        </div>
+      <p className="text-xs font-bold">
+        Se contratan en persona, desde el parque o bar donde van a trabajar. Algunos roban o adulteran el producto: vigílalos aquí.
+      </p>
+      {base.dealers.length === 0 && <p className="text-xs font-bold">Aún no tienes camellos. Ve a un parque o bar y pulsa «Contratar camello».</p>}
+      {base.dealers.map((d) => {
+        const known = (d.sold ?? 0) >= DEALER_REVEAL_SALES
+        const h = honestyOf(d)
+        return (
+          <div key={d.id} className="border-4 border-black p-2 flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="flex-1 font-black truncate">{d.name ?? POI_KINDS[d.kind].label}</span>
+              <span className={`text-xs font-black px-1.5 border-2 border-black ${!known ? 'bg-gray-200' : h >= 70 ? 'bg-green-300' : h >= 45 ? 'bg-yellow-200' : 'bg-red-300'}`}>
+                {known ? `Fiabilidad ${h}` : `Fiabilidad ? (${d.sold ?? 0}/${DEALER_REVEAL_SALES} ventas)`}
+              </span>
+            </div>
+            <p className="text-xs font-bold">
+              Ventas {d.sold ?? 0} · cobrado ${d.earned ?? 0} · robado/adulterado ${d.stolen ?? 0} · adulteró {d.cutUnits ?? 0} veces
+            </p>
+            <div className="flex gap-2">
+              <button className={btn} disabled={h >= 100} onClick={() => report(base.bonusDealer(d.id), 'level')}>
+                Prima ${DEALER_BONUS_COST} sucios
+              </button>
+              <button className={`${btn} bg-white!`} onClick={() => base.fireDealer(d.id)}>
+                Despedir
+              </button>
+            </div>
+          </div>
+        )
+      })}
+
+      <p className="text-sm font-black mt-2">Informe de sucesos</p>
+      {base.dealerLog.length === 0 && <p className="text-xs font-bold">Sin incidentes. De momento.</p>}
+      {base.dealerLog.slice(0, 15).map((e, i) => (
+        <p key={i} className="text-xs font-bold">
+          • hace {fmtTime(now - e.at)}: {e.poiName ?? 'Un camello'}{' '}
+          {e.kind === 'theft' ? `te ha birlado $${e.amount}` : `ha adulterado el producto (te cuesta $${e.amount} y sube el Heat)`}
+        </p>
       ))}
     </div>
   )
