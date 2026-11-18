@@ -1,5 +1,5 @@
 import { gridDisk, latLngToCell } from 'h3-js'
-import { get, set } from 'idb-keyval'
+import { del, get, keys, set } from 'idb-keyval'
 import type { LatLng } from '../types'
 import type { CachedCell, Poi } from '../types/poi'
 import { fillSharedCell, readSharedCell, sharedCacheEnabled, type SharedCell } from './poiCache'
@@ -13,7 +13,24 @@ const RING_CONCURRENCY = 3
 // Si algún día cambian las reglas de clasificación, se sube la versión de cacheKey para invalidarlas.
 
 // v4: POIs de teselas vectoriales (ids "vt/…") con límite por tipo y celda, repartidos por distancia y tipo
-const cacheKey = (cell: string): string => `cartelgo:cell4:${H3_RES}:${cell}`
+const CACHE_VERSION = 'cell4'
+const cachePrefix = `cartelgo:${CACHE_VERSION}:`
+const cacheKey = (cell: string): string => `${cachePrefix}${H3_RES}:${cell}`
+
+let purged: Promise<void> | null = null
+/** Borra las celdas guardadas por versiones anteriores del algoritmo (una vez por sesión). El resto de claves no se toca. */
+function purgeStaleCells(): Promise<void> {
+  purged ??= (async () => {
+    try {
+      for (const k of await keys()) {
+        if (typeof k === 'string' && /^cartelgo:cell\d+:/.test(k) && !k.startsWith(cachePrefix)) await del(k)
+      }
+    } catch {
+      /* IndexedDB no disponible */
+    }
+  })()
+  return purged
+}
 
 async function readCache(cell: string): Promise<CachedCell | undefined> {
   try {
@@ -67,6 +84,7 @@ export async function loadPoisAround(
   pos: LatLng,
   onPois: (pois: Poi[]) => void,
 ): Promise<LoadResult> {
+  await purgeStaleCells()
   const cells = cellsAround(pos)
   const [center] = cells
   const toFetch: string[] = []
