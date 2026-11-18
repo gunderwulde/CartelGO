@@ -110,6 +110,17 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 
 ---
 
+## Sprint 7 - Cadena de suministro (diseño en GDD §4 bis)
+
+- [ ] Puntos de Suministro: contacto inicial en persona (almacén/farmacia), gratis; deja de haber compra directa a la mochila.
+- [ ] Pedidos remotos al almacén del HQ pagados con Dinero Sucio; el punto prepara la mercancía (tiempo y cantidad por nivel).
+- [ ] Transportistas: se reclutan como los camellos (huecos por nivel de HQ), recogen en el punto y entregan en el HQ (viaje y capacidad por nivel). Cálculo por .
+- [ ] Mejoras de Punto de Suministro (en persona al precio normal, por teléfono x3, Dinero Limpio) y de Transportista (Dinero Limpio).
+- [ ] Guardar proveedores y transportistas en la partida y en la nube ().
+- [ ] Tests del motor de suministro. Cifras provisionales, afinar al jugar.
+
+---
+
 ## Fase 2 (fuera del MVP) - Multijugador
 
 - [ ] Supabase (PostgreSQL + PostGIS), auth.

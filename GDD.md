@@ -13,14 +13,14 @@
 ### Fase A: En la Calle (Exploración GPS)
 1. El jugador camina por su ciudad con el mapa abierto.
 2. El radar (radio de interacción de **50 metros**) detecta Puntos de Interés (POIs) generados desde OpenStreetMap.
-3. **Abastecimiento:** El jugador visita Zonas Industriales o Farmacias para conseguir *Precursores* (materia prima).
+3. **Abastecimiento:** La **primera vez** el jugador tiene que ir en persona a una Zona Industrial o Farmacia para establecer contacto y convertirla en **Punto de Suministro**. A partir de ahí no hace falta volver: los pedidos de *Precursores* se hacen desde el HQ o desde cualquier sitio y un *Transportista* los trae (ver §4 bis).
 4. **Distribución:** El jugador visita Parques, Bares o Discotecas para vender *Producto Terminado* a cambio de **Dinero Sucio**.
 5. **Evasión:** El jugador evita el radio de influencia de las Comisarías (zonas de alto riesgo de redada).
 
 ### Fase B: En el Cuartel General (Gestión Idle)
 1. Desde casa (o cualquier lugar), el jugador abre la vista de su **Cuartel General (HQ)**.
 2. **Producción:** Asigna *Precursores* a los **Laboratorios** para cocinar productos de mayor pureza y valor de forma pasiva.
-3. **Automatización:** Contrata *Camellos (NPCs)* y los asigna a POIs ya descubiertos para que generen ingresos pasivos constantes.
+3. **Automatización:** Contrata *Camellos (NPCs)* y los asigna a POIs ya descubiertos para que generen ingresos pasivos constantes. Contrata *Transportistas* para que recojan los pedidos en los Puntos de Suministro y los lleven al almacén del HQ.
 4. **Blanqueo:** Envía **Dinero Sucio** a sus *Negocios Tapadera* para convertirlo en **Dinero Limpio**, necesario para expandir infraestructuras.
 
 ---
@@ -29,8 +29,8 @@
 
 | Etiqueta OSM | Tipo de Lugar Real | Rol en el Juego | Mecánica Especial |
 | :--- | :--- | :--- | :--- |
-| `landuse=industrial` | Polígonos / Fábricas | **Almacén Clandestino** | Compra de precursores al por mayor a bajo precio. |
-| `amenity=pharmacy` | Farmacias | **Suministro Químico** | Compra de ingredientes refinados (límite diario). |
+| `landuse=industrial` | Polígonos / Fábricas | **Almacén Clandestino** | Punto de Suministro: precursores al por mayor a bajo precio (todos los tipos). |
+| `amenity=pharmacy` | Farmacias | **Suministro Químico** | Punto de Suministro: solo ingredientes refinados (Químicos básicos), a precio normal. |
 | `leisure=park` | Parques y Plazas | **Punto de Menudeo** | Venta rápida, bajo riesgo, margen de beneficio medio. |
 | `amenity=bar` / `nightclub` | Bares y Discotecas | **Zona VIP** | Alta demanda y precio x2 entre las 20:00 y las 04:00. |
 | `amenity=police` | Comisarías | **Zona Caliente** | Aumenta el medidor de "Búsqueda" (Heat). Si llega al 100%, pierdes la mercancía que llevas encima. |
@@ -51,12 +51,36 @@
 
 ---
 
+## 4 bis. Cadena de Suministro (Puntos de Suministro y Transportistas)
+
+El jugador no puede ir cargando por la calle todo lo que necesita (la mochila es pequeña), así que el abastecimiento funciona como una cadena de tres piezas.
+
+**1. Contacto inicial (en persona, obligatorio).** La primera vez hay que acercarse a un Almacén Clandestino o Farmacia (dentro del radio de interacción) y pulsar *Establecer contacto* (gratis). Desde ese momento es un **Punto de Suministro** del jugador para siempre. Sin contacto no se puede pedir nada ahí.
+
+**2. Pedido (remoto, a precio normal).** Con el contacto hecho, el jugador pide desde el HQ o desde donde esté, pagando con **Dinero Sucio**. El Punto de Suministro **prepara la mercancía** (tiempo de preparación) y la deja lista para recoger. Cada punto atiende un pedido a la vez.
+
+**3. Recogida y entrega (Transportistas).** Un **Transportista** libre va al Punto de Suministro, recoge el pedido y lo lleva al **almacén del HQ** (tiempo de viaje). Sin transportistas contratados no llega nada. Si el pedido es mayor que lo que cabe en un viaje, el transportista hace varios. Si el almacén está lleno, lo que no cabe espera en el punto hasta que haya sitio. El cálculo usa la hora real (`Date.now()`), así que sigue corriendo con la app cerrada.
+
+**Mejoras (dos líneas independientes, 3 niveles cada una; cifras provisionales):**
+
+| Pieza | Qué mejora | Nivel 1 | Nivel 2 | Nivel 3 |
+| :--- | :--- | :--- | :--- | :--- |
+| **Punto de Suministro** | Tiempo de preparación y cantidad máxima por pedido | 6 min · 20 uds | 3 min · 50 uds | 1 min · 120 uds |
+| **Transportista** | Duración del viaje y capacidad por viaje | 10 min · 20 uds | 5 min · 50 uds | 2 min · 120 uds |
+
+- **Mejorar un Punto de Suministro:** se negocia **en persona** (hay que ir al sitio) al precio normal, o **por teléfono** (desde cualquier lugar) a un precio **x3**. Se paga con **Dinero Limpio**: Nivel 2 = $150, Nivel 3 = $500 (en persona).
+- **Contratar y mejorar Transportistas:** se reclutan igual que los Camellos (coste en Dinero Limpio, huecos limitados por el nivel del HQ) y se mejoran con Dinero Limpio. Los transportistas se gestionan desde el HQ, sin ir a ningún sitio.
+- **Cuello de botella:** el ritmo de abastecimiento lo marca el eslabón más lento (preparación, número de transportistas o capacidad de viaje), así que conviene mejorar toda la cadena.
+
+---
+
 ## 5. Infraestructuras del Imperio
 - **Cuartel General (HQ):** El jugador lo coloca en el mapa al empezar (puede moverlo gratis cada 7 días). Determina el nivel máximo de los demás edificios.
 - **Mochila / Vehículo:** Define cuánta mercancía puede cargar el jugador físicamente mientras camina.
 - **Almacén:** Capacidad máxima de almacenamiento en la base.
 - **Laboratorio:** Transforma Precursores en Mercancía automáticamente (mejorable en velocidad y pureza).
 - **Red de Camellos:** Slots de NPCs que generan ingresos *Idle* en los barrios visitados.
+- **Red de Transportistas:** NPCs que llevan los pedidos de los Puntos de Suministro al almacén del HQ (ver §4 bis). Sus huecos dependen del nivel del HQ.
 
 ---
 
@@ -74,3 +98,4 @@
 - **Sprint 3 (Loop de Calle):** Inventario básico, interacción al estar a <50m de un POI (comprar precursores y vender producto).
 - **Sprint 4 (Base e Idle):** Creación del HQ, sistema de fabricación en laboratorio con cálculo de tiempo offline y blanqueo básico.
 - **Sprint 5 (Pulido UI):** Efectos de sonido cartoon, notificaciones locales (ej. "Lote terminado en el laboratorio") y balanceo económico.
+- **Sprint 7 (Cadena de Suministro):** Puntos de Suministro (contacto en persona), pedidos remotos, Transportistas contratables y mejoras de ambos (ver §4 bis).
