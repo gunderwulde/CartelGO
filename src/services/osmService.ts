@@ -7,7 +7,12 @@ import type { CachedCell, Poi, PoiKind } from '../types/poi'
 export const H3_RES = 8
 /** Margen del bbox (grados) para no perder POIs que caen justo en el borde. */
 const BBOX_MARGIN = 0.0005
+/** Cada intento contra un servidor se corta a los 20 s */
 const REQUEST_TIMEOUT_MS = 20_000
+/** Si un servidor tarda más que esto, se lanza la misma petición contra el siguiente (sin cancelar el primero) */
+const HEDGE_DELAY_MS = 3_500
+/** Celdas del anillo que se piden a la vez */
+const RING_CONCURRENCY = 2
 /** AGENTS.md: cachear al menos 24 h. */
 export const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -28,15 +33,12 @@ interface OverpassElement {
   tags?: Record<string, string>
 }
 
-/** Etiquetas OSM de cada rol del juego. */
+/** Etiquetas OSM de cada rol del juego, agrupadas para que Overpass haga pocas pasadas. */
 const SELECTORS = [
-  '["landuse"="industrial"]',
-  '["amenity"="pharmacy"]',
-  '["leisure"="park"]',
-  '["amenity"~"^(bar|nightclub)$"]',
-  '["amenity"="police"]',
+  '["amenity"~"^(pharmacy|bar|nightclub|police|car_wash)$"]',
   '["shop"~"^(laundry|car_wash)$"]',
-  '["amenity"="car_wash"]',
+  '["leisure"="park"]',
+  '["landuse"="industrial"]',
 ]
 
 /** Clasifica un elemento OSM; null si no encaja con ningún rol. */
@@ -67,50 +69,82 @@ export function parseElements(elements: OverpassElement[], allowedCells: Set<str
   return [...out.values()]
 }
 
-/** Una sola consulta por bbox (mucho más barata para Overpass que un around por celda). */
-function buildQuery(cells: string[]): string {
-  let south = 90
-  let north = -90
-  let west = 180
-  let east = -180
-  for (const c of cells) {
-    for (const [lat, lng] of cellToBoundary(c)) {
-      south = Math.min(south, lat)
-      north = Math.max(north, lat)
-      west = Math.min(west, lng)
-      east = Math.max(east, lng)
-    }
-  }
-  const bbox = [south - BBOX_MARGIN, west - BBOX_MARGIN, north + BBOX_MARGIN, east + BBOX_MARGIN]
+/** Consulta de una sola celda: bbox pequeño, rápido para Overpass y cacheable por separado. */
+export function buildCellQuery(cell: string): string {
+  const pts = cellToBoundary(cell)
+  const lats = pts.map((p) => p[0])
+  const lngs = pts.map((p) => p[1])
+  const bbox = [
+    Math.min(...lats) - BBOX_MARGIN,
+    Math.min(...lngs) - BBOX_MARGIN,
+    Math.max(...lats) + BBOX_MARGIN,
+    Math.max(...lngs) + BBOX_MARGIN,
+  ]
     .map((n) => n.toFixed(5))
     .join(',')
   const parts = SELECTORS.map((sel) => `nwr${sel}(${bbox});`)
-  return `[out:json][timeout:25];(${parts.join('')});out center tags;`
+  return `[out:json][timeout:20];(${parts.join('')});out center tags;`
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+/**
+ * Petición "con cobertura": empieza por el primer servidor y, si tarda o falla, lanza el siguiente
+ * sin esperar. Gana el primero que responde bien; el resto se cancela.
+ */
+function hedgedQuery(query: string): Promise<OverpassElement[]> {
+  return new Promise((resolve, reject) => {
+    const controllers: AbortController[] = []
+    const timers: number[] = []
+    let next = 0
+    let failures = 0
+    let settled = false
 
-/** Pide a Overpass con reintentos, backoff y endpoint alternativo. */
-async function queryOverpass(query: string): Promise<OverpassElement[]> {
-  let lastError: unknown = null
-  for (let attempt = 0; attempt < ENDPOINTS.length * 2; attempt++) {
-    const endpoint = ENDPOINTS[attempt % ENDPOINTS.length]
-    try {
-      const res = await fetch(endpoint, {
+    const stopAll = (): void => {
+      timers.forEach((t) => window.clearTimeout(t))
+      controllers.forEach((c) => c.abort())
+    }
+
+    const launch = (): void => {
+      if (settled || next >= ENDPOINTS.length) return
+      const endpoint = ENDPOINTS[next++]
+      const controller = new AbortController()
+      controllers.push(controller)
+      timers.push(window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS))
+      // Si este servidor tarda, se prueba el siguiente en paralelo
+      if (next < ENDPOINTS.length) timers.push(window.setTimeout(launch, HEDGE_DELAY_MS))
+
+      fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: controller.signal,
       })
-      if (!res.ok) throw new Error(`Overpass ${res.status}`)
-      const json = (await res.json()) as { elements?: OverpassElement[] }
-      return json.elements ?? []
-    } catch (e) {
-      lastError = e
-      await sleep(500 * (attempt + 1))
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`Overpass ${res.status}`)
+          const json = (await res.json()) as { elements?: OverpassElement[]; remark?: string }
+          // Overpass responde 200 con un "remark" cuando se queda sin tiempo o memoria
+          if (json.remark && !json.elements?.length) throw new Error(json.remark)
+          return json.elements ?? []
+        })
+        .then((elements) => {
+          if (settled) return
+          settled = true
+          stopAll()
+          resolve(elements)
+        })
+        .catch((e: unknown) => {
+          if (settled) return
+          failures++
+          if (failures >= ENDPOINTS.length) {
+            settled = true
+            stopAll()
+            reject(e instanceof Error ? e : new Error('Overpass no responde'))
+          } else {
+            launch() // este falló: no esperes al temporizador
+          }
+        })
     }
-  }
-  throw lastError instanceof Error ? lastError : new Error('Overpass no responde')
+    launch()
+  })
 }
 
 async function readCache(cell: string): Promise<CachedCell | undefined> {
@@ -129,33 +163,69 @@ async function writeCache(cell: string, value: CachedCell): Promise<void> {
   }
 }
 
-/** Celdas que rodean al jugador (la suya + anillo de 1). */
+/** Celdas que rodean al jugador: la suya primero y luego el anillo de 1. */
 export function cellsAround(pos: LatLng): string[] {
-  return gridDisk(latLngToCell(pos.lat, pos.lng, H3_RES), 1)
+  const center = latLngToCell(pos.lat, pos.lng, H3_RES)
+  return [center, ...gridDisk(center, 1).filter((c) => c !== center)]
+}
+
+export interface LoadResult {
+  /** Celdas que no se pudieron refrescar (se reintentarán más tarde) */
+  failedCells: string[]
+  /** Se usaron datos caducados de la caché porque la red falló */
+  stale: boolean
 }
 
 /**
- * Devuelve los POIs de las celdas cercanas. Solo consulta Overpass por las celdas que
- * no están en caché o han caducado; nunca por movimiento de GPS.
+ * Carga los POIs de las celdas cercanas de forma progresiva: lo cacheado sale al instante, la celda
+ * del jugador se pide primero y el anillo después. Cada celda se entrega con `onPois` en cuanto está.
+ * Solo lanza error si la celda del jugador no tiene ningún dato (ni fresco ni caducado).
  */
-export async function loadPoisAround(pos: LatLng, now = Date.now()): Promise<Poi[]> {
+export async function loadPoisAround(
+  pos: LatLng,
+  onPois: (pois: Poi[]) => void,
+  now = Date.now(),
+): Promise<LoadResult> {
   const cells = cellsAround(pos)
-  const result: Poi[] = []
-  const missing: string[] = []
+  const [center] = cells
+  const toFetch: string[] = []
+  const failed = new Set<string>()
+  const haveData = new Set<string>()
+  let stale = false
 
+  // 1) Caché primero: fresca o caducada, lo que haya, para pintar ya
   for (const c of cells) {
     const cached = await readCache(c)
-    if (cached && now - cached.fetchedAt < CACHE_TTL_MS) result.push(...cached.pois)
-    else missing.push(c)
+    if (cached) {
+      onPois(cached.pois)
+      haveData.add(c)
+    }
+    if (!cached || now - cached.fetchedAt >= CACHE_TTL_MS) toFetch.push(c)
   }
 
-  if (missing.length > 0) {
-    const elements = await queryOverpass(buildQuery(missing))
-    const fresh = parseElements(elements, new Set(missing))
-    for (const c of missing) {
-      await writeCache(c, { fetchedAt: now, pois: fresh.filter((p) => p.cell === c) })
+  // 2) Red: solo lo que falta o caducó (AGENTS §3: nunca en cada lectura de GPS)
+  const fetchCell = async (c: string): Promise<void> => {
+    try {
+      const elements = await hedgedQuery(buildCellQuery(c))
+      const pois = parseElements(elements, new Set([c]))
+      await writeCache(c, { fetchedAt: Date.now(), pois })
+      onPois(pois)
+      haveData.add(c)
+      failed.delete(c)
+    } catch {
+      failed.add(c)
+      if (haveData.has(c)) stale = true
     }
-    result.push(...fresh)
   }
-  return result
+
+  const ring = toFetch.filter((c) => c !== center)
+  if (toFetch.includes(center)) await fetchCell(center)
+  const queue = [...ring]
+  const worker = async (): Promise<void> => {
+    for (let c = queue.shift(); c !== undefined; c = queue.shift()) await fetchCell(c)
+  }
+  await Promise.all(Array.from({ length: RING_CONCURRENCY }, worker))
+
+  if (!haveData.has(center)) throw new Error('Sin datos del barrio')
+  return { failedCells: [...failed], stale }
 }
