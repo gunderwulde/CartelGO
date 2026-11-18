@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { money } from "../services/money";
 import { Clapperboard } from "lucide-react";
 import {
   AD_DURATION_MS,
@@ -31,7 +32,7 @@ export default function AdRescue() {
     useConfirmStore
       .getState()
       .ask(
-        `Estás sin blanca. ¿Quieres ver un anuncio de nuestro patrocinador y llevarte $${AD_RESCUE_REWARD} sucios?`,
+        `Estás sin blanca. ¿Quieres ver un anuncio de nuestro patrocinador y llevarte ${money(AD_RESCUE_REWARD, "dirty")}?`,
         start,
         {
           yes: "Ver anuncio",
@@ -62,7 +63,7 @@ export default function AdRescue() {
       onClick={propose}
     >
       <Clapperboard size={20} />
-      <span>¿Sin blanca? +${AD_RESCUE_REWARD}</span>
+      <span>¿Sin blanca? +{money(AD_RESCUE_REWARD, "dirty")}</span>
     </button>
   );
 }
@@ -114,7 +115,7 @@ function AdScreen({
           >
             {kind === "favor"
               ? `Cobrar ${AD_FAVOR_REWARD} favor`
-              : `Cobrar ${AD_RESCUE_REWARD} sucios`}
+              : `Cobrar ${money(AD_RESCUE_REWARD, "dirty")}`}
           </button>
         ) : (
           <p className="font-black">

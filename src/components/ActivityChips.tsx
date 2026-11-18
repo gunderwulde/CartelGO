@@ -77,7 +77,7 @@ export function ActivityChips({ onOpen }: { onOpen: (tab: Tab) => void }) {
   const hasHq = useBaseStore((s) => s.hq !== null);
   if (!hasHq || chips.length === 0) return null;
   return (
-    <div className="absolute left-3 top-[8.5rem] flex flex-col gap-2 z-[5]">
+    <div className="absolute left-3 top-[5.5rem] flex flex-col gap-2 z-[5]">
       {chips.map((c) => (
         <button
           key={c.key}

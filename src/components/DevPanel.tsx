@@ -15,14 +15,14 @@ export default function DevPanel() {
   const [open, setOpen] = useState(false);
   const btn = "cartoon-btn px-2 py-1 text-xs";
   return (
-    <div className="fixed right-3 top-[14.5rem] z-40 flex flex-col items-end gap-2">
+    <div className="fixed right-3 top-[11.5rem] z-40 flex flex-col items-end gap-2">
       <button className={`${btn} bg-white!`} onClick={() => setOpen((o) => !o)}>
         DEV
       </button>
       {open && (
         <div className="cartoon-card bg-white! p-2 grid grid-cols-2 gap-2">
           <button className={btn} onClick={() => devGive(1000, 0)}>
-            +$1000 sucio
+            +₡1000 sucio
           </button>
           <button className={btn} onClick={() => devGive(0, 1000)}>
             +$1000 limpio

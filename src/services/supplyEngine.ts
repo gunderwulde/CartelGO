@@ -1,3 +1,4 @@
+import type { Cash } from "./money";
 import {
   CARRIER_LEVELS,
   DIRTY_EXCHANGE_YIELD,
@@ -50,8 +51,6 @@ export interface Trip {
 export interface Carrier {
   id: string;
   level: number;
-  /** Punto de suministro al que está ligado: solo hace su ruta (los guardados antiguos no lo tienen y sirven a cualquiera) */
-  supplierId?: string;
   trip: Trip | null;
   /** Desde cuándo está libre (contratación o fin del último viaje) */
   freeAt: number;
@@ -59,11 +58,12 @@ export interface Carrier {
 
 export type Suppliers = Record<string, Supplier>;
 
-export const newCarrier = (
-  id: string,
-  now: number,
-  supplierId?: string,
-): Carrier => ({ id, level: 1, supplierId, trip: null, freeAt: now });
+export const newCarrier = (id: string, now: number): Carrier => ({
+  id,
+  level: 1,
+  trip: null,
+  freeAt: now,
+});
 
 export const supplierInfo = (level: number) =>
   SUPPLIER_LEVELS[Math.min(level, SUPPLY_MAX_LEVEL) - 1];
@@ -83,6 +83,10 @@ export function pending(suppliers: Suppliers, carriers: Carrier[]): number {
 export type OrderPlan =
   | { ok: true; qty: number; cost: number; order: Order }
   | { ok: false; reason: string };
+
+/** Con qué dinero se paga en cada tipo de punto: la farmacia es legal (limpio) y el almacén clandestino, no (sucio). */
+export const supplierCash = (kind: PoiKind): Cash =>
+  kind === "pharmacy" ? "clean" : "dirty";
 
 /** Qué se puede pedir ahora: cantidad (limitada por nivel, espacio y dinero) y coste. */
 export function planOrder(
@@ -111,7 +115,10 @@ export function planOrder(
   if (qty < 1) {
     if (freeSpace < 1)
       return { ok: false, reason: "No hay espacio en el almacén del HQ." };
-    return { ok: false, reason: "No te llega el dinero sucio." };
+    return {
+      ok: false,
+      reason: `No te llega el dinero ${supplierCash(supplier.poi.kind) === "clean" ? "limpio" : "sucio"}.`,
+    };
   }
   return {
     ok: true,
@@ -174,7 +181,6 @@ export function advanceSupply(
       }
       for (const [id, s] of Object.entries(suppliers)) {
         if (!s.order || s.order.qty < 1) continue;
-        if (c.supplierId && c.supplierId !== id) continue;
         const time = Math.max(c.freeAt, s.order.readyAt);
         if (time <= now && better(time, "pickup"))
           next = { time, kind: "pickup", carrier: c, supplierId: id };

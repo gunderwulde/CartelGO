@@ -25,6 +25,7 @@ import {
   newCarrier,
   pending,
   planOrder,
+  supplierCash,
   type Carrier,
   type Suppliers,
 } from "./supplyEngine";
@@ -128,7 +129,7 @@ export function simulate(
         const i = s.carriers.length;
         s.cleanCash -= CARRIER_HIRE_COST;
         s.suppliers[`p${i}`] = { poi: poi(i), level: 1, order: null };
-        s.carriers.push(newCarrier(`t${i}`, now, `p${i}`));
+        s.carriers.push(newCarrier(`t${i}`, now));
         return true;
       }
       case "D": {
@@ -281,8 +282,8 @@ export function simulate(
     // Pedidos: cada proveedor pide lo que más falta para la receta elegida
     const recipe = RECIPES[bestRecipe()];
     const nextIsBusiness = PLAN[s.planIdx] === "B";
-    for (const [id, sp] of Object.entries(s.suppliers)) {
-      if (sp.order || !s.carriers.some((c) => c.supplierId === id)) continue;
+    for (const sp of Object.values(s.suppliers)) {
+      if (sp.order || s.carriers.length === 0) continue;
       const inputs = Object.entries(recipe.inputs) as [ItemId, number][];
       const pend = (item: ItemId) =>
         Object.values(s.suppliers).reduce(
@@ -299,15 +300,15 @@ export function simulate(
           ((s.storage[b[0]] ?? 0) + pend(b[0])) / b[1],
       )[0];
       const reserve = nextIsBusiness ? businessCost(s.businesses.length) : 0;
-      const cash =
-        s.dirtyCash >= reserve
-          ? Math.max(0, s.dirtyCash - reserve)
-          : s.dirtyCash;
+      const wallet =
+        supplierCash(sp.poi.kind) === "clean" ? s.cleanCash : s.dirtyCash;
+      const cash = wallet >= reserve ? Math.max(0, wallet - reserve) : wallet;
       const free =
         s.storageCap - carried(s.storage) - pending(s.suppliers, s.carriers);
       const plan = planOrder(sp, item, 9999, free, cash, now);
       if (plan.ok) {
-        s.dirtyCash -= plan.cost;
+        if (supplierCash(sp.poi.kind) === "clean") s.cleanCash -= plan.cost;
+        else s.dirtyCash -= plan.cost;
         sp.order = plan.order;
       }
     }

@@ -1,4 +1,5 @@
 import { ITEMS, type ItemId } from "../data/items";
+import { money } from "../services/money";
 import { displayName } from "../data/poiNames";
 import {
   CARRIER_LEVELS,
@@ -16,8 +17,8 @@ import { favorCost } from "../services/favors";
 import { handleResult } from "../services/feedback";
 import { offersFor, unitPrice } from "../services/tradeEngine";
 import {
-  isNeeded,
   rankByNeed,
+  supplierCash,
   supplierUpgradeCost,
   type Carrier,
   type Supplier,
@@ -124,19 +125,18 @@ export function SupplierCard({
       )}
 
       {rankByNeed(offersFor(poi.kind).buy, storage, labLevel, reputation).map(
-        (item: ItemId, i) => (
+        (item: ItemId) => (
           <div key={item} className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
               <p className="font-bold leading-tight truncate">
                 {ITEMS[item].label}
-                {i === 0 && isNeeded(item, labLevel, reputation) && (
-                  <span className="ml-1 text-xs font-black bg-yellow-300 border-2 border-black px-1">
-                    LO MÁS NECESARIO
-                  </span>
-                )}
               </p>
               <p className="text-xs font-bold opacity-70">
-                ${unitPrice(poi.kind, item, new Date(now))} c/u
+                {money(
+                  unitPrice(poi.kind, item, new Date(now)),
+                  supplierCash(poi.kind),
+                )}{" "}
+                c/u
               </p>
             </div>
             <button
@@ -171,7 +171,7 @@ export function SupplierCard({
             disabled={blocked || upCost === null}
             onClick={() => report(upgradeSupplier(poi.id), "level")}
           >
-            {upCost === null ? "Máx" : `Mejorar $${upCost}`}
+            {upCost === null ? "Máx" : `Mejorar ${money(upCost, "clean")}`}
           </button>
         </div>
       )}
@@ -216,7 +216,7 @@ export function CarrierCard({
         disabled={max}
         onClick={() => report(upgradeCarrier(carrier.id), "level")}
       >
-        {max ? "Máx" : `$${CARRIER_UPGRADE_COSTS[carrier.level]}`}
+        {max ? "Máx" : money(CARRIER_UPGRADE_COSTS[carrier.level], "clean")}
       </button>
     </div>
   );

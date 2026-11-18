@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { money } from "../services/money";
 import { displayName } from "../data/poiNames";
-import { Truck, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { handleResult } from "../services/feedback";
 import type { Poi } from "../types/poi";
 import { POI_KINDS } from "../data/poiKinds";
@@ -12,12 +12,11 @@ import {
   DEALER_SLOTS,
   businessCost,
 } from "../data/buildings";
-import { CARRIER_HIRE_COST, CARRIER_SLOTS } from "../data/supply";
 import { play } from "../services/sound";
-import { CarrierCard, SupplierCard } from "./SupplyCards";
+import { SupplierCard } from "./SupplyCards";
 import { DealerCard } from "./DealerCard";
 import { EmptyState } from "./EmptyState";
-import { Sheet, type SheetTab } from "./Sheet";
+import { Sheet } from "./Sheet";
 
 interface Props {
   poi: Poi;
@@ -25,37 +24,17 @@ interface Props {
   onClose: () => void;
 }
 
-type PoiTab = "local" | "personal";
-
 export default function TradeModal({ poi, blocked, onClose }: Props) {
-  // En un parque o bar lo único que hay es el camello: se abre directamente en su pestaña
-  const [tab, setTab] = useState<PoiTab>(
-    poi.kind === "park" || poi.kind === "nightlife" ? "personal" : "local",
-  );
-  const dirtyCash = useInventoryStore((s) => s.dirtyCash);
   const setNotice = useInventoryStore((s) => s.setNotice);
   const businesses = useBaseStore((s) => s.businesses);
   const supplier = useBaseStore((s) => s.suppliers[poi.id]);
-  const carriers = useBaseStore((s) => s.carriers);
   const dealers = useBaseStore((s) => s.dealers);
   const hqLevel = useBaseStore((s) => s.hqLevel);
   const dealer = dealers.find((d) => d.poiId === poi.id);
-  // Los guardados antiguos tienen transportistas sin punto asignado: se muestran en cualquiera
-  const mine =
-    carriers.find((c) => c.supplierId === poi.id) ??
-    carriers.find((c) => !c.supplierId);
-  const cleanCash = useInventoryStore((s) => s.cleanCash);
 
   const info = POI_KINDS[poi.kind];
   const isSupplyPoint = poi.kind === "warehouse" || poi.kind === "pharmacy";
   const isDealerSpot = poi.kind === "park" || poi.kind === "nightlife";
-
-  // Personal asociado al sitio: el camello del parque/bar, o los transportistas del punto de suministro
-  const tabs: SheetTab<PoiTab>[] = [{ id: "local", label: "Local" }];
-  if (isDealerSpot)
-    tabs.push({ id: "personal", label: dealer ? "Camello" : "Personal" });
-  if (isSupplyPoint) tabs.push({ id: "personal", label: "Transportistas" });
-  const activeTab: PoiTab = tabs.some((t) => t.id === tab) ? tab : "local";
 
   const header = (
     <div className="flex items-start gap-2">
@@ -66,9 +45,6 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
         </p>
         <p className="text-xs font-bold opacity-70">
           {info.label} · {info.role}
-        </p>
-        <p className="num text-xs font-black">
-          ${dirtyCash} sucios · ${cleanCash} limpios
         </p>
       </div>
     </div>
@@ -112,7 +88,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
           <div>
             <p className="text-sm font-bold mb-2">
               Se compra con Dinero Sucio y después blanquea solo (te quedas el
-              80 %). Tienes ${dirtyCash} sucios.
+              80 %).
             </p>
             <button
               className="cartoon-btn px-3 py-2 text-sm"
@@ -123,16 +99,10 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
                 setNotice(r.ok ? r.message : r.reason);
               }}
             >
-              Comprar ${businessCost(businesses.length)} sucios
+              Comprar {money(businessCost(businesses.length), "dirty")}
             </button>
           </div>
         ))}
-      {isDealerSpot && (
-        <p className="text-sm font-bold">
-          Aquí no se vende a mano: tu negocio es el camello. Mira la pestaña{" "}
-          {dealer ? "Camello" : "Personal"}.
-        </p>
-      )}
       {!isSupplyPoint && poi.kind !== "cover" && !isDealerSpot && (
         <p className="text-sm font-bold">
           Aquí no se hacen negocios. Aléjate, que te estás calentando.
@@ -151,7 +121,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
             icon={<Users size={32} />}
             title="Nadie trabaja aquí"
             hint={`Un camello vende solo y queda asignado a este sitio. Camellos ${dealers.length}/${DEALER_SLOTS[hqLevel - 1]}. Ojo: no todos son de fiar.`}
-            action={`Contratar camello $${DEALER_HIRE_COST}`}
+            action={`Contratar camello ${money(DEALER_HIRE_COST, "clean")}`}
             onAction={() => {
               if (blocked) return;
               handleResult(
@@ -168,52 +138,19 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
             }}
           />
         ))}
-      {isSupplyPoint && (
-        <>
-          <p className="text-xs font-bold">
-            Cada punto tiene su propio transportista: solo hace la ruta de aquí
-            al almacén del HQ. Tienes {carriers.length}/
-            {CARRIER_SLOTS[hqLevel - 1]} (los huecos suben con el HQ).
-          </p>
-          {mine ? (
-            <CarrierCard carrier={mine} index={carriers.indexOf(mine)} />
-          ) : !supplier ? (
-            <EmptyState
-              icon={<Truck size={32} />}
-              title="Sin contacto"
-              hint="Establece contacto con este proveedor (pestaña Local) para poder contratarle un transportista."
-            />
-          ) : (
-            <EmptyState
-              icon={<Truck size={32} />}
-              title="Sin transportista"
-              hint="Sin él, los pedidos de este punto no llegan al HQ."
-              action={`Contratar · $${CARRIER_HIRE_COST}`}
-              onAction={() => {
-                if (blocked) return;
-                handleResult(
-                  useBaseStore.getState().hireCarrier(poi.id),
-                  "level",
-                );
-              }}
-            />
-          )}
-        </>
-      )}
     </div>
   );
 
   return (
     <Sheet
       header={header}
-      tabs={tabs}
-      tab={activeTab}
-      onTab={setTab}
+      tabs={[]}
+      tab="local"
+      onTab={() => {}}
       onClose={onClose}
       label={displayName(poi) ?? info.label}
-      fixedHeight
     >
-      {activeTab === "local" ? local : personal}
+      {isDealerSpot ? personal : local}
     </Sheet>
   );
 }

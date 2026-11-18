@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { money } from "../services/money";
 import { X } from "lucide-react";
 import { useAccountStore, type ConflictInfo } from "../store/accountStore";
 import {
@@ -182,8 +183,8 @@ function Side({ title, s }: { title: string; s: SaveSummary }) {
     <div className="flex-1 border-[3px] border-black rounded-lg p-2 bg-white">
       <p className="font-black text-sm mb-1">{title}</p>
       <p className="text-xs font-bold">Reputación {s.reputation}</p>
-      <p className="text-xs font-bold">Limpio ${s.cleanCash}</p>
-      <p className="text-xs font-bold">Sucio ${s.dirtyCash}</p>
+      <p className="text-xs font-bold">Limpio {money(s.cleanCash, "clean")}</p>
+      <p className="text-xs font-bold">Sucio {money(s.dirtyCash, "dirty")}</p>
       <p className="text-xs font-bold">
         {s.dealers} camellos · {s.businesses} negocios
       </p>

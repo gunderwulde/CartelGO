@@ -36,6 +36,50 @@ Se usa poco color y siempre con significado:
 - El rojo se reserva para momentos que importan (peligro, error, "0" de un ingrediente que falta); si se usa en todo, no destaca.
 - Un lugar **con el que tienes trato** (camello, negocio, punto de suministro con contacto o pedido) se ve a todo color y con un círculo; los demás, atenuados. El HQ lleva su propio círculo de borde grueso.
 
+## 3 bis. Moneda
+
+- **Dinero Limpio: «$»**, en verde oscuro. **Dinero Sucio: «₡»**, en marrón. Siempre con el símbolo, nunca un número suelto.
+- Todo importe pasa por `money(cantidad, "clean" | "dirty")` (`services/money.ts`) en textos, o por el componente `<Money>` (con color) en la interfaz. No se escribe `${n}` a mano.
+- La barra superior de la pantalla principal muestra los dos saldos: `# UI.md - Reglas de interfaz de Cartel GO
+
+Reglas que **de verdad se usan** en el código. Si algo de aquí deja de cumplirse, se arregla el código o se corrige este documento. El estilo es **cartoon / satírico**, pensado para una sola mano en el móvil. Complementa a `AGENTS.md` (convenciones de código) y `GDD.md` (diseño del juego).
+
+## 1. Principios
+
+1. **Mobile-first y una sola mano.** Se diseña para ~375 px de ancho. Las acciones principales van en el tercio inferior de la pantalla; arriba solo información (HUD).
+2. **El mapa manda.** Los paneles ocupan como mucho la mitad inferior de la pantalla y el mapa sigue visible y tocable por encima.
+3. **Lo importante primero.** Cada pantalla tiene una acción principal y un dato que debe verse antes que nada. El valor pesa más que su etiqueta (el "$1.240" más grande que "sucios").
+4. **Mostrar solo lo útil.** Si un botón no se puede usar por falta de recursos, no se muestra o se explica por qué. Los cuadros de información que no aportan se quitan: más mercancía y menos cajas.
+5. **Nada del sistema.** Prohibido `window.confirm`, `alert` y `prompt`. Todo aviso o confirmación es un popup propio con el estilo del juego (`useConfirmStore.ask(...)` y `ConfirmDialog`; las acciones del store devuelven `{ ok: false, confirm }` y la UI las pasa por `handleResult`).
+
+## 2. Estilo visual cartoon
+
+- **Bordes gruesos negros** de 4 px (`#111`) en botones, tarjetas y paneles.
+- **Sombras duras**, sin difuminar y sin color: `4px 4px 0 #111` en botones y `5px 5px 0 #111` en tarjetas. Al pulsar un botón se desplaza hacia la sombra (efecto de pulsación).
+- **Clases base** en `src/index.css`: `cartoon-btn` (amarillo `#fde047`, texto en negro 900) y `cartoon-card` (fondo blanco). Se reutilizan; no se inventan botones nuevos.
+- **Esquinas:** los paneles inferiores llevan arriba `rounded-t-2xl`; las pestañas, `rounded-t-xl`. El resto, rectas.
+- **Sin degradados, sin desenfoques, sin sombras suaves.** El estilo es plano y de contornos marcados.
+- **Iconos:** Lucide, con trazo grueso. Los POIs se dibujan con un icono por tipo (`PoiBadge`) y el mismo icono en el mapa.
+
+## 3. Color
+
+Se usa poco color y siempre con significado:
+
+| Uso | Color |
+| :--- | :--- |
+| Acción principal, botones, panel del HQ | Amarillo (`yellow-300` / `#fde047`) |
+| Paneles y tarjetas | Blanco con borde negro |
+| Pestaña inactiva | Amarillo claro (`yellow-100` / `yellow-200`) |
+| Bien / fiable / ya tienes trato | Verde (`green-300`, `#4ade80` en el mapa) |
+| Aviso / en preparación | Amarillo (`yellow-200`, `#facc15` en el mapa) |
+| Peligro / error / falta algo | Rojo (`red-300`, `red-600` en texto) |
+| Texto secundario | El mismo negro con `opacity-70` |
+
+- El rojo se reserva para momentos que importan (peligro, error, "0" de un ingrediente que falta); si se usa en todo, no destaca.
+- Un lugar **con el que tienes trato** (camello, negocio, punto de suministro con contacto o pedido) se ve a todo color y con un círculo; los demás, atenuados. El HQ lleva su propio círculo de borde grueso.
+
+ limpio y `₡` sucio.
+
 ## 4. Tipografía
 
 - **Una sola familia:** la del sistema (`system-ui`). Sin fuentes externas.

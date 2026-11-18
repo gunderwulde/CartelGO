@@ -35,7 +35,6 @@ import {
   GpsBlocker,
   PlaceHqBanner,
   PoiStatus,
-  TopBar,
 } from "./components/Hud";
 
 // MapLibre pesa ~1 MB: no se descarga hasta que se empieza a jugar
@@ -70,7 +69,6 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const status = usePlayerStore((s) => s.gpsStatus);
-  const speed = usePlayerStore((s) => s.speed);
   const driving = usePlayerStore((s) => s.driving);
   const simulation = usePlayerStore((s) => s.simulation);
   const position = usePlayerStore((s) => s.position);
@@ -249,7 +247,6 @@ export default function App() {
           }}
         />
       </Suspense>
-      <TopBar status={status} speed={speed} simulation={simulation} />
       <PoiStatus
         status={poiStatus}
         count={Object.keys(pois).length}

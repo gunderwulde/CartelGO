@@ -4,6 +4,7 @@ import {
   DEALER_REVEAL_SALES,
   REFUND_SHARE,
 } from "../data/buildings";
+import { money } from "../services/money";
 import { displayName } from "../data/poiNames";
 import { POI_KINDS } from "../data/poiKinds";
 import { fmtTime } from "../services/fmt";
@@ -61,11 +62,12 @@ export function DealerCard({
         </span>
       </div>
       <p className="num text-xs font-bold">
-        Ventas {d.sold ?? 0} · cobrado ${d.earned ?? 0} · robado/adulterado $
-        {d.stolen ?? 0} · adulteró {d.cutUnits ?? 0} veces
+        Ventas {d.sold ?? 0} · cobrado {money(d.earned ?? 0, "dirty")} ·
+        robado/adulterado {money(d.stolen ?? 0, "dirty")} · adulteró{" "}
+        {d.cutUnits ?? 0} veces
       </p>
       <p className="num text-xs font-black">
-        Neto ${(d.earned ?? 0) - (d.stolen ?? 0)}
+        Neto {money((d.earned ?? 0) - (d.stolen ?? 0), "dirty")}
       </p>
       <div className="flex gap-2">
         <button
@@ -73,13 +75,14 @@ export function DealerCard({
           disabled={h >= 100}
           onClick={() => handleResult(bonusDealer(d.id), "level")}
         >
-          Prima ${DEALER_BONUS_COST} sucios
+          Prima {money(DEALER_BONUS_COST, "dirty")}
         </button>
         <button
           className={`${btn} bg-white!`}
           onClick={() => handleResult(fireDealer(d.id), "tap")}
         >
-          Despedir (+${Math.floor(DEALER_HIRE_COST * REFUND_SHARE)} limpios)
+          Despedir (+
+          {money(Math.floor(DEALER_HIRE_COST * REFUND_SHARE), "clean")})
         </button>
       </div>
       {log && (
@@ -94,8 +97,8 @@ export function DealerCard({
             <p key={i} className="text-xs font-bold">
               • hace {fmtTime(now - e.at)}:{" "}
               {e.kind === "theft"
-                ? `te ha birlado $${e.amount}`
-                : `adulteró el producto (te cuesta $${e.amount} y sube el Heat)`}
+                ? `te ha birlado ${money(e.amount, "dirty")}`
+                : `adulteró el producto (te cuesta ${money(e.amount, "dirty")} y sube el Heat)`}
             </p>
           ))}
         </div>

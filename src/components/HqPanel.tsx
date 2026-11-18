@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { money } from "../services/money";
 import { displayName } from "../data/poiNames";
-import { Building2, Package, Users } from "lucide-react";
+import { Package, Users } from "lucide-react";
 import { ITEMS, type ItemId } from "../data/items";
 import {
   DEALER_SLOTS,
@@ -9,7 +10,6 @@ import {
   MAX_LEVEL,
   RECIPES,
   UPGRADE_INFO,
-  businessCost,
   type UpgradeKind,
 } from "../data/buildings";
 import {
@@ -34,11 +34,12 @@ import {
 } from "../services/adRescue";
 import { useAdStore } from "../store/adStore";
 import {
+  CARRIER_HIRE_COST,
   CARRIER_SLOTS,
   DIRTY_EXCHANGE_STEPS,
   DIRTY_EXCHANGE_YIELD,
 } from "../data/supply";
-import { SupplierCard } from "./SupplyCards";
+import { CarrierCard, SupplierCard } from "./SupplyCards";
 import { EmptyState } from "./EmptyState";
 import { Sheet } from "./Sheet";
 import { DealerCard } from "./DealerCard";
@@ -90,15 +91,6 @@ export default function HqPanel({
           />
         </div>
       </div>
-      {used === 0 && (
-        <EmptyState
-          icon={<Package size={32} />}
-          title="El almacén está vacío"
-          hint="Pide mercancía a un proveedor y un transportista te la traerá. Sin ella el laboratorio no cocina."
-          action="Pedir suministro"
-          onAction={() => setTab("suministro")}
-        />
-      )}
       {(Object.keys(ITEMS) as ItemId[]).map((id) => (
         <div key={id} className="flex items-center gap-2">
           <p className="flex-1 min-w-0 font-black leading-tight truncate">
@@ -227,8 +219,16 @@ export default function HqPanel({
       {base.dealers.length > 1 && (
         <p className="num text-xs font-bold bg-yellow-100 border-2 border-black p-2">
           Total: {base.dealers.reduce((a, d) => a + (d.sold ?? 0), 0)} ventas ·
-          cobrado ${base.dealers.reduce((a, d) => a + (d.earned ?? 0), 0)} ·
-          perdido ${base.dealers.reduce((a, d) => a + (d.stolen ?? 0), 0)}
+          cobrado{" "}
+          {money(
+            base.dealers.reduce((a, d) => a + (d.earned ?? 0), 0),
+            "dirty",
+          )}{" "}
+          · perdido{" "}
+          {money(
+            base.dealers.reduce((a, d) => a + (d.stolen ?? 0), 0),
+            "dirty",
+          )}
         </p>
       )}
       {base.dealers.map((d) => (
@@ -243,8 +243,8 @@ export default function HqPanel({
         <p key={i} className="text-xs font-bold">
           • hace {fmtTime(now - e.at)}: {e.poiName ?? "Un camello"}{" "}
           {e.kind === "theft"
-            ? `te ha birlado $${e.amount}`
-            : `ha adulterado el producto (te cuesta $${e.amount} y sube el Heat)`}
+            ? `te ha birlado ${money(e.amount, "dirty")}`
+            : `ha adulterado el producto (te cuesta ${money(e.amount, "dirty")} y sube el Heat)`}
         </p>
       ))}
     </div>
@@ -255,11 +255,23 @@ export default function HqPanel({
     <div className="flex flex-col gap-3">
       <p className="text-xs font-bold">
         Los puntos de suministro preparan tu pedido y un transportista libre lo
-        recoge y lo trae al almacén. Cada punto tiene el suyo:{" "}
-        {base.carriers.length}/{CARRIER_SLOTS[base.hqLevel - 1]} contratados; se
-        contratan y mejoran en el panel de cualquier almacén o farmacia (pestaña
-        Transportistas).
+        recoge y lo trae al almacén del HQ, vaya al punto que vaya.
       </p>
+      <p className="text-sm font-black">
+        Transportistas ({base.carriers.length}/{CARRIER_SLOTS[base.hqLevel - 1]}
+        )
+      </p>
+      {base.carriers.map((c, i) => (
+        <CarrierCard key={c.id} carrier={c} index={i} />
+      ))}
+      {base.carriers.length < CARRIER_SLOTS[base.hqLevel - 1] && (
+        <button
+          className={btn}
+          onClick={() => report(base.hireCarrier(), "level")}
+        >
+          Contratar transportista · {money(CARRIER_HIRE_COST, "clean")}
+        </button>
+      )}
       {(() => {
         const last = loadLastOrder();
         const sp = last ? base.suppliers[last.poiId] : undefined;
@@ -321,7 +333,7 @@ export default function HqPanel({
               disabled={max}
               onClick={() => report(base.upgrade(k), "level")}
             >
-              {max ? "Máx" : `$${UPGRADE_INFO[k].costs[level]}`}
+              {max ? "Máx" : money(UPGRADE_INFO[k].costs[level], "clean")}
             </button>
           </div>
         );
@@ -355,8 +367,9 @@ export default function HqPanel({
       <p className="text-sm font-black mt-4">Ensuciar dinero</p>
       <p className="text-xs font-bold">
         Un cambista te da Dinero Sucio a cambio de limpio, pero se queda con la
-        mitad (recibes ${Math.round(DIRTY_EXCHANGE_YIELD * 100)} de cada $100).
-        Es la salida si te quedas sin sucio para pedir ingredientes.
+        mitad (recibes {money(Math.round(DIRTY_EXCHANGE_YIELD * 100), "dirty")}{" "}
+        de cada {money(100, "clean")}). Es la salida si te quedas sin sucio para
+        pedir ingredientes.
       </p>
       <div className="flex gap-2">
         {DIRTY_EXCHANGE_STEPS.map((n) => (
@@ -366,28 +379,11 @@ export default function HqPanel({
             disabled={inv.cleanCash < n}
             onClick={() => report(base.makeDirty(n), "tap")}
           >
-            ${n} limpios → ${Math.floor(n * DIRTY_EXCHANGE_YIELD)} sucios
+            {money(n, "clean")} →{" "}
+            {money(Math.floor(n * DIRTY_EXCHANGE_YIELD), "dirty")}
           </button>
         ))}
       </div>
-
-      <p className="text-sm font-black mt-4">
-        Negocios tapadera ({base.businesses.length})
-      </p>
-      {base.businesses.length === 0 && (
-        <EmptyState
-          icon={<Building2 size={32} />}
-          title="Sin negocio tapadera"
-          hint={`Cómpralo en una lavandería o autolavado (${businessCost(0)} sucios) para blanquear dinero solo.`}
-          action="Ir a la lavandería más cercana"
-          onAction={() => onGo({ type: "poi", kinds: ["cover"] })}
-        />
-      )}
-      {base.businesses.map((b) => (
-        <p key={b.poiId} className="text-sm font-bold">
-          • {displayName({ id: b.poiId, kind: "cover", ...b })}
-        </p>
-      ))}
 
       <button
         className={`${btn} mt-4`}
@@ -413,11 +409,11 @@ export default function HqPanel({
       <p className="text-lg font-black leading-tight">Cuartel General</p>
       <p className="num flex flex-wrap items-baseline gap-x-3">
         <span className="text-lg font-black">
-          ${inv.dirtyCash}
+          {money(inv.dirtyCash, "dirty")}
           <span className="text-xs font-bold opacity-70"> sucio</span>
         </span>
         <span className="text-lg font-black">
-          ${inv.cleanCash}
+          {money(inv.cleanCash, "clean")}
           <span className="text-xs font-bold opacity-70"> limpio</span>
         </span>
         <span className="text-sm font-black">

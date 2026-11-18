@@ -20,7 +20,7 @@
 ### Fase B: En el Cuartel General (Gestión Idle)
 1. Desde casa (o cualquier lugar), el jugador abre la vista de su **Cuartel General (HQ)**.
 2. **Producción:** Asigna *Precursores* a los **Laboratorios** para cocinar productos de mayor pureza y valor de forma pasiva.
-3. **Automatización:** Contrata *Camellos (NPCs)* **en persona, en el parque o bar** donde van a trabajar: quedan asignados a ese punto y venden solos (pueden robar o adulterar, ver §4 quater). Contrata *Transportistas* para que recojan los pedidos en los Puntos de Suministro y los lleven al almacén del HQ.
+3. **Automatización:** Contrata *Camellos (NPCs)* **en persona, en el parque o bar** donde van a trabajar: quedan asignados a ese punto y venden solos (pueden robar o adulterar, ver §4 quater). Contrata *Transportistas* en el HQ para que recojan los pedidos en los Puntos de Suministro y los lleven al almacén del HQ.
 4. **Blanqueo:** Envía **Dinero Sucio** a sus *Negocios Tapadera* para convertirlo en **Dinero Limpio**, necesario para expandir infraestructuras.
 
 ---
@@ -58,6 +58,7 @@ Los nombres reales de OpenStreetMap **no se usan nunca** (no queremos marcas ni 
    - *Cristal Azul* (Tier 2 - Requiere Laboratorio Básico, valor medio).
    - *Polvo Estelar* (Tier 3 - Requiere Laboratorio Avanzado, alto valor).
 3. **Dinero Sucio (Cash):** Se gana vendiendo en la calle o mediante camellos. No se puede usar para mejorar edificios principales y se pierde si te atrapa la policía.
+3b. **Notación:** el Dinero Limpio se escribe con **$** y el Dinero Sucio con **₡** (en pantalla, además, en verde y marrón).
 4. **Dinero Limpio (Banco):** Se obtiene blanqueando Dinero Sucio. Sirve para ampliar el HQ y desbloquear tecnologías. (Los negocios tapadera se compran con Dinero Sucio: es lo que luego lo blanquea.)
 5. **Reputación (XP):** Sube al completar entregas y expandir territorio. Desbloquea nuevos Tiers.
 
@@ -69,7 +70,7 @@ El jugador no carga mercancía encima (no hay mochila: se dedica a los negocios,
 
 **1. Contacto inicial (en persona, obligatorio).** La primera vez hay que acercarse a un Almacén Clandestino o Farmacia (dentro del radio de interacción) y pulsar *Establecer contacto* (gratis). Desde ese momento es un **Punto de Suministro** del jugador para siempre. Sin contacto no se puede pedir nada ahí.
 
-**2. Pedido (remoto, a precio normal).** Con el contacto hecho, el jugador pide desde el HQ o desde donde esté, pagando con **Dinero Sucio**. El Punto de Suministro **prepara la mercancía** (tiempo de preparación) y la deja lista para recoger. Cada punto atiende un pedido a la vez.
+**2. Pedido (remoto, a precio normal).** Con el contacto hecho, el jugador pide desde el HQ o desde donde esté, pagando con **Dinero Sucio** (almacén clandestino) o **Dinero Limpio** (farmacia: es comercio legal). El Punto de Suministro **prepara la mercancía** (tiempo de preparación) y la deja lista para recoger. Cada punto atiende un pedido a la vez.
 
 **3. Recogida y entrega (Transportistas).** Un **Transportista** libre va al Punto de Suministro, recoge el pedido y lo lleva al **almacén del HQ** (tiempo de viaje). Sin transportistas contratados no llega nada. Si el pedido es mayor que lo que cabe en un viaje, el transportista hace varios. Si el almacén está lleno, lo que no cabe espera en el punto hasta que haya sitio. El cálculo usa la hora real (`Date.now()`), así que sigue corriendo con la app cerrada.
 
@@ -81,7 +82,7 @@ El jugador no carga mercancía encima (no hay mochila: se dedica a los negocios,
 | **Transportista** | Duración del viaje y capacidad por viaje | 10 min · 20 uds | 5 min · 50 uds | 2 min · 120 uds |
 
 - **Mejorar un Punto de Suministro:** se negocia **en persona** (hay que ir al sitio) al precio normal, o **por teléfono** (desde cualquier lugar) a un precio **x3**. Se paga con **Dinero Limpio**: Nivel 2 = $800, Nivel 3 = $6.000 (en persona).
-- **Contratar y mejorar Transportistas:** se reclutan igual que los Camellos (coste en Dinero Limpio, huecos limitados por el nivel del HQ) y se mejoran con Dinero Limpio. Cada transportista queda **ligado a un Punto de Suministro** (como el camello a su bar) y solo hace la ruta de ese punto: se contrata y mejora en el panel del propio almacén o farmacia (pestaña *Transportistas*), una vez establecido el contacto. Los huecos totales dependen del nivel del HQ (1 / 2 / 3).
+- **Contratar y mejorar Transportistas:** se reclutan igual que los Camellos (coste en Dinero Limpio, huecos limitados por el nivel del HQ) y se mejoran con Dinero Limpio. Los transportistas **no están ligados a ningún punto**: se contratan y mejoran en el HQ (pestaña *Suministro*) y el primero que esté libre recoge cualquier pedido listo. Los huecos totales dependen del nivel del HQ (1 / 2 / 3). Más adelante se añadirán los **comerciales** (ver «Ideas futuras» en PLAN.md): personal que pide y suministra materias de forma automática.
 - **Cuello de botella:** el ritmo de abastecimiento lo marca el eslabón más lento (preparación, número de transportistas o capacidad de viaje), así que conviene mejorar toda la cadena.
 
 ---
@@ -154,7 +155,7 @@ El cálculo es determinista (hash de camello + instante), así que sale igual of
 
 Los precursores se pagan con **Dinero Sucio**, pero el blanqueo automático lo convierte en limpio. Sin cuidado, el sucio llega a 0, no puedes pedir ingredientes, no produces y no entra más dinero (la simulación lo confirma: la partida no avanza). Cuatro piezas lo evitan:
 
-1. **Ensuciar dinero.** El jugador puede cambiar Dinero Limpio por Dinero Sucio en el HQ (pestaña Mejoras). Un cambista se queda con la mitad: de cada $100 limpios salen $50 sucios. Es la salida de emergencia si el sucio se agota, y cara a propósito para que no sustituya al blanqueo normal. Los pedidos se pagan siempre con sucio.
+1. **Ensuciar dinero.** El jugador puede cambiar Dinero Limpio por Dinero Sucio en el HQ (pestaña Mejoras). Un cambista se queda con la mitad: de cada $100 limpios salen $50 sucios. Es la salida de emergencia si el sucio se agota, y cara a propósito para que no sustituya al blanqueo normal. Los pedidos al almacén se pagan con sucio; los de farmacia, con limpio.
 2. **Reembolso al despedir.** Despedir a un camello devuelve el **50 %** de su coste de contratación, en Dinero Limpio (lo que pagaste).
 3. **Negocio con sucio.** El negocio tapadera se paga con Dinero Sucio (no tendría sentido «blanquear» pagando con limpio). Si gastas todo el sucio en pedidos antes de tener el primero, la salida es ensuciar limpio en el HQ o esperar a las ventas del camello.
 

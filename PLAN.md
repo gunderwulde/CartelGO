@@ -22,8 +22,8 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
   - Todas las rutas de assets relativas al `base` (nada de `/icon.png` absoluto).
   - Si se usa router: `HashRouter` (Pages no hace fallback SPA) o copiar `index.html` a `404.html`.
 - [x] Workflow `.github/workflows/deploy.yml`: build + `actions/upload-pages-artifact` + `actions/deploy-pages` en cada push a `main`.
-- [ ] En GitHub: *Settings → Pages → Source = GitHub Actions*.
-- [ ] Verificar que la URL pública carga, es HTTPS (necesario para Geolocation) y es instalable como PWA.
+- [x] En GitHub: *Settings → Pages → Source = GitHub Actions*.
+- [x] Verificar que la URL pública carga, es HTTPS (necesario para Geolocation) y es instalable como PWA.
 
 **Hecho cuando:** una pantalla "Hola Cartel" se ve en la URL de Pages y se instala en móvil.
 
@@ -153,6 +153,12 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 - [ ] Hexágonos H3 res. 8, puntos de influencia por venta, dominio +15 %.
 - [ ] Respetar la regla de privacidad del HQ (solo H3 res. 7).
 - [ ] Validación server-side de ventas (el cliente es manipulable).
+
+---
+
+## Ideas futuras
+
+- [ ] **Comerciales:** personal contratable que se encarga de pedir y suministrar materias automáticamente (por ejemplo, mantener el stock de un compuesto), sin que el jugador tenga que hacer cada pedido. Los transportistas siguen siendo genéricos (no ligados a un punto); los comerciales son quienes automatizan los pedidos.
 
 ---
 

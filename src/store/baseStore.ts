@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { money } from "../services/money";
 import {
   createJSONStorage,
   persist,
@@ -52,6 +53,7 @@ import {
   advanceSupply,
   dirtyFromClean,
   newCarrier,
+  supplierCash,
   pending,
   planOrder,
   supplierUpgradeCost,
@@ -136,7 +138,7 @@ interface BaseState {
   skipBatch: () => ActionResult;
   calmHeat: () => ActionResult;
   upgradeSupplier: (poiId: string) => ActionResult;
-  hireCarrier: (poiId: string) => ActionResult;
+  hireCarrier: () => ActionResult;
   upgradeCarrier: (id: string) => ActionResult;
   markVisited: (pois: Poi[]) => void;
   /** Redada: la policía se lleva una parte del almacén. Devuelve las unidades confiscadas */
@@ -174,7 +176,7 @@ function reportDealers(events: DealerEvent[]): void {
   useInventoryStore
     .getState()
     .setNotice(
-      `Tus camellos te han quitado $${stolen} sucios${cuts > 0 ? ` y han adulterado el producto ${cuts} vez/veces (¡más Heat!)` : ""}. Mira el informe en el HQ.`,
+      `Tus camellos te han quitado ${money(stolen, "dirty")}${cuts > 0 ? ` y han adulterado el producto ${cuts} vez/veces (¡más Heat!)` : ""}. Mira el informe en el HQ.`,
     );
 }
 
@@ -261,7 +263,7 @@ export const useBaseStore = create<BaseState>()(
         if (s.dealers.length >= DEALER_SLOTS[s.hqLevel - 1])
           return fail("No tienes más huecos. Mejora el HQ.");
         if (inv.cleanCash < DEALER_HIRE_COST)
-          return fail(`Contratar cuesta $${DEALER_HIRE_COST} limpios.`);
+          return fail(`Contratar cuesta ${money(DEALER_HIRE_COST, "clean")}.`);
         useInventoryStore.setState({
           cleanCash: inv.cleanCash - DEALER_HIRE_COST,
         });
@@ -279,7 +281,9 @@ export const useBaseStore = create<BaseState>()(
         const inv = useInventoryStore.getState();
         useInventoryStore.setState({ cleanCash: inv.cleanCash + refund });
         set({ dealers: s.dealers.filter((d) => d.id !== id) });
-        return done(`Camello despedido. Te devuelve ${refund} limpios.`);
+        return done(
+          `Camello despedido. Te devuelve ${money(refund, "clean")}.`,
+        );
       },
 
       bonusDealer: (id) => {
@@ -289,7 +293,7 @@ export const useBaseStore = create<BaseState>()(
         if (!d) return fail("No existe ese camello.");
         if (honestyOf(d) >= 100) return fail("Ya es de total confianza.");
         if (inv.dirtyCash < DEALER_BONUS_COST)
-          return fail(`La prima cuesta ${DEALER_BONUS_COST} sucios.`);
+          return fail(`La prima cuesta ${money(DEALER_BONUS_COST, "dirty")}.`);
         useInventoryStore.setState({
           dirtyCash: inv.dirtyCash - DEALER_BONUS_COST,
         });
@@ -315,7 +319,8 @@ export const useBaseStore = create<BaseState>()(
         if (s.businesses.some((b) => b.poiId === poi.id))
           return fail("Ya es tuyo.");
         const cost = businessCost(s.businesses.length);
-        if (inv.dirtyCash < cost) return fail(`Cuesta ${cost} sucios.`);
+        if (inv.dirtyCash < cost)
+          return fail(`Cuesta ${money(cost, "dirty")}.`);
         useInventoryStore.setState({ dirtyCash: inv.dirtyCash - cost });
         set({
           businesses: [
@@ -335,7 +340,8 @@ export const useBaseStore = create<BaseState>()(
         if (kind !== "hq" && level >= s.hqLevel)
           return fail("Mejora antes el Cuartel General.");
         const cost = UPGRADE_INFO[kind].costs[level];
-        if (inv.cleanCash < cost) return fail(`Cuesta ${cost} limpios.`);
+        if (inv.cleanCash < cost)
+          return fail(`Cuesta ${money(cost, "clean")}.`);
         useInventoryStore.setState({ cleanCash: inv.cleanCash - cost });
         set(
           kind === "hq"
@@ -445,7 +451,9 @@ export const useBaseStore = create<BaseState>()(
           dirtyCash: inv.dirtyCash + AD_RESCUE_REWARD,
         });
         set({ adAt: now });
-        return done(`Patrocinador generoso: +${AD_RESCUE_REWARD} sucios.`);
+        return done(
+          `Patrocinador generoso: +${money(AD_RESCUE_REWARD, "dirty")}.`,
+        );
       },
 
       claimFavorAd: () => {
@@ -460,14 +468,14 @@ export const useBaseStore = create<BaseState>()(
         const inv = useInventoryStore.getState();
         if (cleanAmount < 1) return fail("Indica una cantidad.");
         if (inv.cleanCash < cleanAmount)
-          return fail(`No tienes ${cleanAmount} limpios.`);
+          return fail(`No tienes ${money(cleanAmount, "clean")}.`);
         const dirty = dirtyFromClean(cleanAmount);
         useInventoryStore.setState({
           cleanCash: inv.cleanCash - cleanAmount,
           dirtyCash: inv.dirtyCash + dirty,
         });
         return done(
-          `Ensuciados ${cleanAmount} limpios: te dan ${dirty} sucios.`,
+          `Ensuciados ${money(cleanAmount, "clean")}: te dan ${money(dirty, "dirty")}.`,
         );
       },
 
@@ -482,18 +490,24 @@ export const useBaseStore = create<BaseState>()(
           return fail(
             "Coloca antes tu Cuartel General: allí llega la mercancía.",
           );
-        if (!s.carriers.some((c) => !c.supplierId || c.supplierId === poiId))
+        if (s.carriers.length === 0)
           return fail(
-            "Este proveedor no tiene transportista: contrátalo en su panel (pestaña Transportista).",
+            "Sin transportista no llega nada: contrátalo en el HQ (pestaña Suministro).",
           );
         const free =
           storageCap(s.storageLevel) -
           carried(s.storage) -
           pending(s.suppliers, s.carriers);
         const now = Date.now();
-        const plan = planOrder(supplier, item, qty, free, inv.dirtyCash, now);
+        const cash = supplierCash(supplier.poi.kind);
+        const wallet = cash === "clean" ? inv.cleanCash : inv.dirtyCash;
+        const plan = planOrder(supplier, item, qty, free, wallet, now);
         if (!plan.ok) return fail(plan.reason);
-        useInventoryStore.setState({ dirtyCash: inv.dirtyCash - plan.cost });
+        useInventoryStore.setState(
+          cash === "clean"
+            ? { cleanCash: inv.cleanCash - plan.cost }
+            : { dirtyCash: inv.dirtyCash - plan.cost },
+        );
         set({
           suppliers: {
             ...s.suppliers,
@@ -501,7 +515,7 @@ export const useBaseStore = create<BaseState>()(
           },
         });
         return done(
-          `Pedido: ${plan.qty} × ${ITEMS[item].label} por ${plan.cost}. Lo preparan y un transportista lo recoge.`,
+          `Pedido: ${plan.qty} × ${ITEMS[item].label} por ${money(plan.cost, cash)}. Lo preparan y un transportista lo recoge.`,
         );
       },
 
@@ -517,7 +531,7 @@ export const useBaseStore = create<BaseState>()(
         if (cost === null) return fail("Ya está al máximo.");
         if (inv.cleanCash < cost)
           return fail(
-            `Cuesta ${cost} limpios${remote ? " por teléfono" : ""}.`,
+            `Cuesta ${money(cost, "clean")}${remote ? " por teléfono" : ""}.`,
           );
         useInventoryStore.setState({ cleanCash: inv.cleanCash - cost });
         set({
@@ -531,27 +545,18 @@ export const useBaseStore = create<BaseState>()(
         );
       },
 
-      hireCarrier: (poiId) => {
+      hireCarrier: () => {
         const s = get();
         const inv = useInventoryStore.getState();
-        if (!s.suppliers[poiId])
-          return fail(
-            "Primero hay que establecer contacto con este proveedor.",
-          );
-        if (s.carriers.some((c) => c.supplierId === poiId))
-          return fail("Este proveedor ya tiene transportista.");
         if (s.carriers.length >= CARRIER_SLOTS[s.hqLevel - 1])
           return fail("No tienes más huecos. Mejora el HQ.");
         if (inv.cleanCash < CARRIER_HIRE_COST)
-          return fail(`Contratar cuesta ${CARRIER_HIRE_COST} limpios.`);
+          return fail(`Contratar cuesta ${money(CARRIER_HIRE_COST, "clean")}.`);
         useInventoryStore.setState({
           cleanCash: inv.cleanCash - CARRIER_HIRE_COST,
         });
         set({
-          carriers: [
-            ...s.carriers,
-            newCarrier(`t${Date.now()}`, Date.now(), poiId),
-          ],
+          carriers: [...s.carriers, newCarrier(`t${Date.now()}`, Date.now())],
         });
         return done("Transportista contratado.");
       },
@@ -563,7 +568,8 @@ export const useBaseStore = create<BaseState>()(
         if (!c) return fail("No existe ese transportista.");
         if (c.level >= SUPPLY_MAX_LEVEL) return fail("Ya está al máximo.");
         const cost = CARRIER_UPGRADE_COSTS[c.level];
-        if (inv.cleanCash < cost) return fail(`Cuesta ${cost} limpios.`);
+        if (inv.cleanCash < cost)
+          return fail(`Cuesta ${money(cost, "clean")}.`);
         useInventoryStore.setState({ cleanCash: inv.cleanCash - cost });
         set({
           carriers: s.carriers.map((x) =>

@@ -5,6 +5,8 @@ import {
   ShoppingBag,
   Siren,
 } from "lucide-react";
+import { Money } from "./Money";
+import { money } from "../services/money";
 import type { ReactNode } from "react";
 import { fmtTime } from "../services/fmt";
 import { play } from "../services/sound";
@@ -41,12 +43,22 @@ export default function AwayReport() {
         <ul className="flex flex-col gap-2 bg-white border-4 border-black p-3">
           {r.dirty > 0 && (
             <Line icon={<Banknote size={20} />}>
-              <span className="num font-black">+${r.dirty}</span> sucios
+              <Money
+                amount={r.dirty}
+                kind="dirty"
+                className="before:content-['+']"
+              />{" "}
+              sucios
             </Line>
           )}
           {r.clean > 0 && (
             <Line icon={<Banknote size={20} />}>
-              <span className="num font-black">+${r.clean}</span> limpios
+              <Money
+                amount={r.clean}
+                kind="clean"
+                className="before:content-['+']"
+              />{" "}
+              limpios
             </Line>
           )}
           {r.sales > 0 && (
@@ -72,8 +84,10 @@ export default function AwayReport() {
               <span className="text-red-700 font-black">
                 {r.incidents} incidente(s)
               </span>
-              {r.stolen > 0 ? `: te han quitado $${r.stolen}` : ""}. Mira el
-              informe del HQ.
+              {r.stolen > 0
+                ? `: te han quitado ${money(r.stolen, "dirty")}`
+                : ""}
+              . Mira el informe del HQ.
             </Line>
           )}
         </ul>

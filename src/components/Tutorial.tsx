@@ -26,8 +26,8 @@ const STEPS: Step[] = [
   },
   {
     title: "Contrata un transportista",
-    hint: "En un almacén o farmacia, pestaña Transportistas (ya con contacto establecido). Él te traerá la mercancía.",
-    go: { type: "poi", kinds: ["warehouse", "pharmacy"] },
+    hint: "En el HQ, pestaña Suministro. Él recogerá en cualquier proveedor y te traerá la mercancía.",
+    go: { type: "hq", tab: "suministro" },
   },
   {
     title: "Haz tu primer pedido",
@@ -144,7 +144,7 @@ export default function Tutorial({
   if (done || flags[0] !== "1" || phase === null) return null;
   // Siempre por encima del resto de pantallas (HQ, comercio), por debajo de los avisos
   const base =
-    "fixed inset-x-3 top-[7rem] cartoon-card bg-yellow-200! p-3 z-[45] " +
+    "fixed inset-x-3 top-[4rem] cartoon-card bg-yellow-200! p-3 z-[45] " +
     (phase === "in" ? "tutorial-in" : "tutorial-out");
 
   const backdrop =

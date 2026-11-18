@@ -6,7 +6,6 @@ import {
   Crosshair,
   GraduationCap,
   House,
-  Navigation,
   RefreshCw,
   TriangleAlert,
   Volume2,
@@ -29,29 +28,9 @@ const STATUS_TEXT: Record<GpsStatus, string> = {
   error: "Error de GPS",
 };
 
-interface TopProps {
-  status: GpsStatus;
-  speed: number;
-  simulation: boolean;
-}
-
-export function TopBar({ status, speed, simulation }: TopProps) {
-  return (
-    <div className="absolute top-0 inset-x-0 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] flex justify-between items-start pointer-events-none">
-      <div className="cartoon-card px-3 py-1.5 font-black text-sm flex items-center gap-2">
-        <Navigation size={16} />
-        {simulation ? "Modo simulación" : STATUS_TEXT[status]}
-      </div>
-      <div className="cartoon-card px-3 py-1.5 font-black text-sm">
-        {Math.round(speed)} km/h
-      </div>
-    </div>
-  );
-}
-
 export function DrivingWarning() {
   return (
-    <div className="absolute inset-x-3 top-[6.25rem] cartoon-card bg-red-500! text-white p-3 flex items-center gap-3 z-10">
+    <div className="absolute inset-x-3 top-[3.25rem] cartoon-card bg-red-500! text-white p-3 flex items-center gap-3 z-10">
       <TriangleAlert size={32} className="shrink-0" />
       <div>
         <p className="font-black text-lg leading-tight">¡Modo Conducción!</p>
@@ -73,7 +52,7 @@ export function GpsBlocker({
   if (status === "active" || status === "requesting" || status === "idle")
     return null;
   return (
-    <div className="absolute inset-x-3 top-[6.25rem] cartoon-card p-3 z-10">
+    <div className="absolute inset-x-3 top-[3.25rem] cartoon-card p-3 z-10">
       <p className="font-black">{STATUS_TEXT[status]}</p>
       <p className="text-sm font-bold mb-2">
         Activa la ubicación del navegador o usa el modo simulación.
@@ -150,7 +129,7 @@ export function BottomButtons({
       {showTutorialBtn && (
         // En fixed y con z alto: queda por encima de los paneles (HQ, comercio). Se oculta mientras se ve la tarjeta
         <button
-          className="cartoon-btn w-11 h-11 flex items-center justify-center tutorial-blink fixed right-3 top-[7rem] z-[46]"
+          className="cartoon-btn w-11 h-11 flex items-center justify-center tutorial-blink fixed right-3 top-[4rem] z-[46]"
           onClick={() => useTutorialStore.getState().show()}
           aria-label="Ver el siguiente paso del tutorial"
         >
@@ -158,7 +137,7 @@ export function BottomButtons({
         </button>
       )}
       <div
-        className={`absolute right-3 flex flex-col gap-2 ${hasHq && pending ? "top-[10.5rem]" : "top-[7rem]"}`}
+        className={`absolute right-3 flex flex-col gap-2 ${hasHq && pending ? "top-[7.5rem]" : "top-[4rem]"}`}
       >
         <button
           className="cartoon-btn w-11 h-11 flex items-center justify-center bg-white!"
@@ -188,7 +167,7 @@ interface PoiStatusProps {
 export function PoiStatus({ status, count, onRetry }: PoiStatusProps) {
   if (status === "idle" || status === "ready") return null;
   return (
-    <div className="absolute left-3 top-[6.25rem] cartoon-card px-3 py-1.5 text-xs font-black flex items-center gap-2">
+    <div className="absolute left-3 top-[3.25rem] cartoon-card px-3 py-1.5 text-xs font-black flex items-center gap-2">
       {status === "loading" ? (
         <>Explorando el barrio… ({count})</>
       ) : (
