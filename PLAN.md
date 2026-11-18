@@ -105,6 +105,7 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 - [x] Inicio de sesión por código de email (Supabase Auth), opcional: se juega igual sin cuenta.
 - [x] Tabla `saves` (RLS por usuario) y sincronización: sube con cambios (cada ~3 min y al salir), descarga si la nube avanzó, pregunta si avanzaron las dos (`cloudPlan.ts` con tests).
 - [x] El HQ no se sube con coordenadas (solo celda H3 res. 7), según AGENTS §3.
+- [ ] **APARCADO**: el botón de cuenta está oculto (`ACCOUNT_BUTTON_VISIBLE = false` en `Hud.tsx`) porque el email llega con enlace en vez de código. Para retomarlo: poner `{{ .Token }}` en las plantillas *Confirm signup* y *Magic Link* de Supabase y volver a poner la constante en `true`.
 - [ ] Pendiente en Supabase: ejecutar `0002_saves.sql`, poner `{{ .Token }}` en la plantilla de email y configurar SMTP propio antes de lanzar.
 - [ ] Decidido no crear cuenta anónima automática: con el juego local el id no aporta nada hasta la Fase 2; se añade entonces.
 

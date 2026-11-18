@@ -57,6 +57,9 @@ export function GpsBlocker({ status, onRetry }: { status: GpsStatus; onRetry: ()
   )
 }
 
+/** Oculto de momento: el correo de Supabase aún manda enlace en vez de código (ver PLAN.md, Sprint 6) */
+const ACCOUNT_BUTTON_VISIBLE = false
+
 interface BottomProps {
   follow: boolean
   onToggleFollow: () => void
@@ -72,7 +75,7 @@ export function BottomButtons({ follow, onToggleFollow, onHq, onAccount, onClear
   const CloudIcon = auth !== 'in' ? Cloud : sync === 'ok' ? CloudCheck : sync === 'error' ? CloudAlert : sync === 'offline' ? CloudOff : Cloud
   return (
     <div className="absolute right-3 bottom-[max(1rem,env(safe-area-inset-bottom))] flex flex-col gap-3">
-      {backendEnabled && (
+      {ACCOUNT_BUTTON_VISIBLE && backendEnabled && (
         <button
           className="cartoon-btn w-14 h-14 flex items-center justify-center bg-white!"
           onClick={onAccount}
