@@ -23,7 +23,7 @@ function purgeStaleCells(): Promise<void> {
   purged ??= (async () => {
     try {
       for (const k of await keys()) {
-        if (typeof k === 'string' && /^cartelgo:cell\d+:/.test(k) && !k.startsWith(cachePrefix)) await del(k)
+        if (typeof k === 'string' && /^cartelgo:cell\d*:/.test(k) && !k.startsWith(cachePrefix)) await del(k)
       }
     } catch {
       /* IndexedDB no disponible */
