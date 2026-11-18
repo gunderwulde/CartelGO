@@ -1,23 +1,17 @@
 // Edge Function (Deno): rellena la caché compartida de POIs de una celda H3.
-// Solo se invoca cuando la celda falta o está caducada; las lecturas van directas a la tabla.
+// Lee las teselas vectoriales de OpenFreeMap (datos OSM). Solo se invoca cuando la celda falta o está
+// caducada; las lecturas van directas a la tabla.
+// OJO: la lógica de teselas es una copia de src/services/tilePois.ts. Mantener sincronizadas.
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { VectorTile } from 'npm:@mapbox/vector-tile@3'
+import { PbfReader } from 'npm:pbf@5'
 import { cellToBoundary, isValidCell, getResolution, latLngToCell } from 'npm:h3-js@4'
 
 const H3_RES = 8
-const BBOX_MARGIN = 0.0005
+const Z = 14
 const TTL_MS = 14 * 24 * 60 * 60 * 1000 // OSM cambia despacio
-const ENDPOINTS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
-]
-const USER_AGENT = 'CartelGO-poi-cache/1.0 (juego de ficcion; cache compartida por celda H3)'
-const SELECTORS = [
-  '["amenity"~"^(pharmacy|bar|nightclub|police|car_wash)$"]',
-  '["shop"~"^(laundry|car_wash)$"]',
-  '["leisure"="park"]',
-  '["landuse"="industrial"]',
-]
+const TILEJSON_URL = 'https://tiles.openfreemap.org/planet'
+const TILE_TIMEOUT_MS = 15_000
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -26,88 +20,109 @@ const CORS = {
 }
 
 type Kind = 'warehouse' | 'pharmacy' | 'park' | 'nightlife' | 'police' | 'cover'
-interface Element {
-  type: string
-  id: number
-  lat?: number
-  lon?: number
-  center?: { lat: number; lon: number }
-  tags?: Record<string, string>
+interface Poi {
+  id: string
+  kind: Kind
+  name: string | null
+  lat: number
+  lng: number
+  cell: string
 }
 
-// OJO: misma clasificación que src/services/osmService.ts (classify). Mantener sincronizadas.
-function classify(t: Record<string, string>): Kind | null {
-  if (t.amenity === 'police') return 'police'
-  if (t.amenity === 'pharmacy') return 'pharmacy'
-  if (t.amenity === 'bar' || t.amenity === 'nightclub') return 'nightlife'
-  if (t.shop === 'laundry' || t.shop === 'car_wash' || t.amenity === 'car_wash') return 'cover'
-  if (t.leisure === 'park') return 'park'
-  if (t.landuse === 'industrial') return 'warehouse'
+function classifyPoi(cls: string, subclass: string): Kind | null {
+  if (cls === 'police') return 'police'
+  if (cls === 'pharmacy') return 'pharmacy'
+  if (cls === 'bar' || cls === 'nightclub' || subclass === 'pub' || subclass === 'nightclub') return 'nightlife'
+  if (cls === 'park') return 'park'
+  if (cls === 'laundry' || cls === 'car_wash' || subclass === 'car_wash' || subclass === 'laundry') return 'cover'
   return null
 }
 
-function buildQuery(cell: string): string {
-  const pts = cellToBoundary(cell)
-  const lats = pts.map((p) => p[0])
-  const lngs = pts.map((p) => p[1])
-  const bbox = [
-    Math.min(...lats) - BBOX_MARGIN,
-    Math.min(...lngs) - BBOX_MARGIN,
-    Math.max(...lats) + BBOX_MARGIN,
-    Math.max(...lngs) + BBOX_MARGIN,
-  ]
-    .map((n) => n.toFixed(5))
-    .join(',')
-  return `[out:json][timeout:25];(${SELECTORS.map((s) => `nwr${s}(${bbox});`).join('')});out center tags;`
+const lngToTileX = (lng: number): number => Math.floor(((lng + 180) / 360) * 2 ** Z)
+const latToTileY = (lat: number): number => {
+  const r = (lat * Math.PI) / 180
+  return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** Z)
 }
 
-async function overpass(query: string): Promise<Element[]> {
-  // En paralelo con salida escalonada: gana el primero que responde bien
-  const attempt = async (endpoint: string, i: number): Promise<Element[]> => {
-    await new Promise((r) => setTimeout(r, i * 2_000))
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': USER_AGENT,
-          Accept: 'application/json',
-        },
-        body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(40_000),
-      })
-      if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 80).replace(/\s+/g, ' ')}`)
-      const json = (await res.json()) as { elements?: Element[]; remark?: string }
-      if (json.remark && !json.elements?.length) throw new Error(json.remark)
-      return json.elements ?? []
-    } catch (e) {
-      throw new Error(`${new URL(endpoint).host}: ${e instanceof Error ? e.message : String(e)}`)
+function tilesForCell(cell: string): { x: number; y: number }[] {
+  const pts = cellToBoundary(cell)
+  const lats = pts.map((p: number[]) => p[0])
+  const lngs = pts.map((p: number[]) => p[1])
+  const out: { x: number; y: number }[] = []
+  for (let x = lngToTileX(Math.min(...lngs)); x <= lngToTileX(Math.max(...lngs)); x++) {
+    for (let y = latToTileY(Math.max(...lats)); y <= latToTileY(Math.min(...lats)); y++) out.push({ x, y })
+  }
+  return out
+}
+
+function tilePointToLatLng(x: number, y: number, px: number, py: number, extent: number) {
+  const n = 2 ** Z
+  const lng = ((x + px / extent) / n) * 360 - 180
+  const lat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + py / extent)) / n))) * 180) / Math.PI
+  return { lat, lng }
+}
+
+function poisFromTile(tile: VectorTile, x: number, y: number, cell: string): Poi[] {
+  const out = new Map<string, Poi>()
+  const add = (kind: Kind, name: unknown, lat: number, lng: number, osmId: number | undefined, tag: string) => {
+    if (latLngToCell(lat, lng, H3_RES) !== cell) return
+    const id = osmId !== undefined ? `vt/${osmId}` : `vt/${tag}/${lat.toFixed(4)},${lng.toFixed(4)}`
+    out.set(id, { id, kind, name: typeof name === 'string' && name ? name : null, lat, lng, cell })
+  }
+  const poi = tile.layers.poi
+  if (poi) {
+    for (let i = 0; i < poi.length; i++) {
+      const f = poi.feature(i)
+      const kind = classifyPoi(String(f.properties.class ?? ''), String(f.properties.subclass ?? ''))
+      const pt = kind ? f.loadGeometry()[0]?.[0] : undefined
+      if (!kind || !pt) continue
+      const { lat, lng } = tilePointToLatLng(x, y, pt.x, pt.y, f.extent)
+      add(kind, f.properties.name, lat, lng, f.id, kind)
     }
   }
-  try {
-    return await Promise.any(ENDPOINTS.map(attempt))
-  } catch (e) {
-    const errs = (e as AggregateError).errors?.map((x: Error) => x.message) ?? [String(e)]
-    throw new Error(errs.join(' | '))
-  }
-}
-
-function toPois(elements: Element[], cell: string) {
-  const out = new Map<string, unknown>()
-  for (const el of elements) {
-    const lat = el.lat ?? el.center?.lat
-    const lng = el.lon ?? el.center?.lon
-    if (lat === undefined || lng === undefined || !el.tags) continue
-    const kind = classify(el.tags)
-    if (!kind || latLngToCell(lat, lng, H3_RES) !== cell) continue
-    const id = `${el.type}/${el.id}`
-    out.set(id, { id, kind, name: el.tags.name ?? null, lat, lng, cell })
+  const landuse = tile.layers.landuse
+  if (landuse) {
+    for (let i = 0; i < landuse.length; i++) {
+      const f = landuse.feature(i)
+      if (f.properties.class !== 'industrial') continue
+      const ring = f.loadGeometry()[0]
+      if (!ring?.length) continue
+      const xs = ring.map((p: { x: number }) => p.x)
+      const ys = ring.map((p: { y: number }) => p.y)
+      const { lat, lng } = tilePointToLatLng(
+        x,
+        y,
+        (Math.min(...xs) + Math.max(...xs)) / 2,
+        (Math.min(...ys) + Math.max(...ys)) / 2,
+        f.extent,
+      )
+      add('warehouse', f.properties.name, lat, lng, undefined, 'industrial')
+    }
   }
   return [...out.values()]
 }
 
-// Una sola petición a Overpass por celda dentro de la misma instancia
-const inflight = new Map<string, Promise<{ fetched_at: string; pois: unknown[] }>>()
+async function fetchCellPois(cell: string): Promise<Poi[]> {
+  const tj = await fetch(TILEJSON_URL, { signal: AbortSignal.timeout(TILE_TIMEOUT_MS) })
+  if (!tj.ok) throw new Error(`TileJSON ${tj.status}`)
+  const template = ((await tj.json()) as { tiles?: string[] }).tiles?.[0]
+  if (!template) throw new Error('TileJSON sin teselas')
+  const all = await Promise.all(
+    tilesForCell(cell).map(async ({ x, y }) => {
+      const url = template.replace('{z}', String(Z)).replace('{x}', String(x)).replace('{y}', String(y))
+      const res = await fetch(url, { signal: AbortSignal.timeout(TILE_TIMEOUT_MS) })
+      if (res.status === 404) return []
+      if (!res.ok) throw new Error(`Tesela ${res.status}`)
+      return poisFromTile(new VectorTile(new PbfReader(new Uint8Array(await res.arrayBuffer()))), x, y, cell)
+    }),
+  )
+  const merged = new Map<string, Poi>()
+  for (const p of all.flat()) merged.set(p.id, p)
+  return [...merged.values()]
+}
+
+// Una sola lectura de teselas por celda dentro de la misma instancia
+const inflight = new Map<string, Promise<{ fetched_at: string; pois: Poi[] }>>()
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -131,7 +146,7 @@ Deno.serve(async (req) => {
   let job = inflight.get(cell)
   if (!job) {
     job = (async () => {
-      const pois = toPois(await overpass(buildQuery(cell)), cell)
+      const pois = await fetchCellPois(cell as string)
       const fetched_at = new Date().toISOString()
       const { error } = await db.from('poi_cells').upsert({ cell, fetched_at, pois })
       if (error) throw new Error(error.message)
@@ -142,8 +157,8 @@ Deno.serve(async (req) => {
   try {
     return json(await job)
   } catch (e) {
-    // Si Overpass falla pero había datos caducados, es mejor servirlos que nada
+    // Si las teselas fallan pero había datos caducados, es mejor servirlos que nada
     if (row) return json({ ...row, stale: true })
-    return json({ error: e instanceof Error ? e.message : 'Overpass no responde' }, 502)
+    return json({ error: e instanceof Error ? e.message : 'No se pudieron leer las teselas' }, 502)
   }
 })

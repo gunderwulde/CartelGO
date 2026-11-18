@@ -60,6 +60,7 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 - [x] Gestión de errores/rate-limit de Overpass (3 endpoints, timeout de 20 s, reintento con enfriamiento de 30 s).
 - [x] Endurecimiento del servicio (v2): una consulta por celda con bbox pequeño, peticiones "con cobertura" (si un servidor tarda 3,5 s o falla se lanza el siguiente en paralelo), carga progresiva (caché → celda actual → vecinas), caché caducada como respaldo, reintento de celdas fallidas cada 60 s. Solo hay error si la celda del jugador no tiene ningún dato. Pendiente: probar en navegador real; los espejos públicos kumi/private.coffee van muy lentos, si sigue flaky montar un proxy propio.
 - [x] Caché compartida en Supabase (tabla `poi_cells` + función `poi-cell`), con Overpass directo como respaldo. Código listo; falta crear el proyecto y desplegar: ver `supabase/README.md`.
+- [x] Cambio de fuente (v3): Overpass seguía saturado (502/406/timeouts), así que los POIs salen de las teselas vectoriales de OpenFreeMap (`tilePois.ts`): ~200 ms por celda, sin API que se caiga. Overpass queda descartado. Pierde autolavados y parte de los nombres de OSM completo. Función `poi-cell` desplegada (v3) y tabla `poi_cells` creada en Supabase.
 - [x] Pintar marcadores (círculos de color) por tipo y radio de 50 m del radar; círculo de influencia de comisarías.
 
 ## Sprint 3 - Loop de calle

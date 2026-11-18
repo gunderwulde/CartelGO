@@ -1,6 +1,6 @@
 # Supabase - caché compartida de POIs
 
-El cliente lee la tabla `poi_cells` directamente. Si una celda falta o tiene más de 14 días, llama a la función `poi-cell`, que consulta Overpass, guarda el resultado y lo devuelve. Sin configurar nada, el juego sigue funcionando con Overpass directo.
+El cliente lee la tabla `poi_cells` directamente. Si una celda falta o tiene más de 14 días, llama a la función `poi-cell`, que lee las teselas vectoriales de OpenFreeMap (datos de OSM, las mismas del mapa), guarda el resultado y lo devuelve. Sin configurar nada, el juego lee las teselas directamente desde el móvil.
 
 ## Puesta en marcha (una vez)
 
@@ -24,6 +24,6 @@ El cliente lee la tabla `poi_cells` directamente. Si una celda falta o tiene má
 La clave `anon` es pública por diseño; la protege RLS (solo lectura). Nunca pongas la `service_role` en el cliente.
 
 ## Notas
-- `functions/poi-cell/index.ts` duplica `classify()` de `src/services/osmService.ts`: si cambias los roles OSM, cámbialos en los dos sitios.
+- `functions/poi-cell/index.ts` duplica la lógica de `src/services/tilePois.ts` (clasificación y geometría de teselas): si cambias los roles, cámbialos en los dos sitios y vuelve a desplegar.
 - Los datos son de OpenStreetMap (ODbL): hay que mantener la atribución en el mapa.
 - Plan Free: el proyecto se pausa tras ~1 semana sin actividad.

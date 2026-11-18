@@ -10,10 +10,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@mapbox/vector-tile": "^3.0.0",
     "h3-js": "^4.5.0",
     "idb-keyval": "^6.3.0",
     "lucide-react": "^1.74.0",
     "maplibre-gl": "^6.19.0",
+    "pbf": "^5.1.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zustand": "^5.1.0"
