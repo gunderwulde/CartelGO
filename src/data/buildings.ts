@@ -1,104 +1,137 @@
-import type { ItemId } from './items'
+import type { ItemId } from "./items";
+import { CFG, sec } from "./config";
 
-/** Nivel máximo de cada edificio. El HQ limita al resto (GDD §5). */
-export const MAX_LEVEL = 3
+const E = CFG.edificios;
+const D = CFG.camellos;
+const N = CFG.negocios;
+
+/** Nivel máximo de cada edificio. El HQ limita al resto (GDD §5). Todos los números viven en balance.json. */
+export const MAX_LEVEL = E.nivelMaximo;
 
 /** Coste en Dinero Limpio para llegar al nivel N (índice N-1). */
-export const HQ_COSTS = [0, 1200, 4800]
-export const LAB_COSTS = [0, 1600, 6000]
-export const STORAGE_COSTS = [0, 1000, 3600]
+export const HQ_COSTS: number[] = E.costeHQ;
+export const LAB_COSTS: number[] = E.costeLaboratorio;
+export const STORAGE_COSTS: number[] = E.costeAlmacen;
 
-export const STORAGE_CAPACITY = [100, 250, 600]
+export const STORAGE_CAPACITY: number[] = E.capacidadAlmacen;
 /** Camellos máximos por nivel de HQ */
-export const DEALER_SLOTS = [2, 4, 6]
+export const DEALER_SLOTS: number[] = E.huecosCamellos;
 
-export const LAB_NAMES = ['Cocina de garaje', 'Laboratorio Básico', 'Laboratorio Avanzado']
+export const LAB_NAMES = [
+  "Cocina de garaje",
+  "Laboratorio Básico",
+  "Laboratorio Avanzado",
+];
 
-export type UpgradeKind = 'hq' | 'lab' | 'storage'
+export type UpgradeKind = "hq" | "lab" | "storage";
 
-export const UPGRADE_INFO: Record<UpgradeKind, { label: string; costs: number[] }> = {
-  hq: { label: 'Cuartel General', costs: HQ_COSTS },
-  lab: { label: 'Laboratorio', costs: LAB_COSTS },
-  storage: { label: 'Almacén', costs: STORAGE_COSTS },
-}
+export const UPGRADE_INFO: Record<
+  UpgradeKind,
+  { label: string; costs: number[] }
+> = {
+  hq: { label: "Cuartel General", costs: HQ_COSTS },
+  lab: { label: "Laboratorio", costs: LAB_COSTS },
+  storage: { label: "Almacén", costs: STORAGE_COSTS },
+};
 
-export const DEALER_HIRE_COST = 150
+export const DEALER_HIRE_COST = D.costeContratar;
 /** Al despedir a un camello se recupera esta parte de lo que costó contratarlo (en Dinero Limpio) */
-export const REFUND_SHARE = 0.5
+export const REFUND_SHARE = D.reembolsoAlDespedir;
 
 // --- Camellos: lealtad, robo y adulteración (GDD §4 quater) ---
 /** Cada camello tiene una fiabilidad 0-100. Prob. de cada sablazo por venta = BASE × (1 - fiabilidad/100) */
-export const DEALER_THEFT_BASE = 0.12
-export const DEALER_CUT_BASE = 0.1
+export const DEALER_THEFT_BASE = D.probRoboBase;
+export const DEALER_CUT_BASE = D.probAdulteracionBase;
 /** Fracción de la venta que se queda el camello cuando roba */
-export const DEALER_THEFT_SHARE = 0.4
+export const DEALER_THEFT_SHARE = D.parteQueSeQuedanEnRobo;
 /** Fracción de la venta que cobras cuando el camello adultera el producto */
-export const DEALER_CUT_PAYOUT = 0.7
+export const DEALER_CUT_PAYOUT = D.parteQueCobrasEnAdulteracion;
 /** Una adulteración sube el Heat y quita reputación */
-export const DEALER_CUT_HEAT = 5
-export const DEALER_CUT_REP_LOSS = 1
+export const DEALER_CUT_HEAT = D.calorPorAdulteracion;
+export const DEALER_CUT_REP_LOSS = D.reputacionPerdidaPorAdulteracion;
 /** Los camellos dan esta parte de la reputación por unidad vendida (1 = la reputación completa del producto) */
-export const DEALER_REP_SHARE = 1
+export const DEALER_REP_SHARE = D.parteDeReputacion;
 /** Ventas necesarias para conocer de verdad a un camello (hasta entonces su fiabilidad es un misterio) */
-export const DEALER_REVEAL_SALES = 20
+export const DEALER_REVEAL_SALES = D.ventasParaConocerlo;
 /** Prima de lealtad: se paga en Dinero Sucio y sube la fiabilidad */
-export const DEALER_BONUS_COST = 200
-export const DEALER_BONUS_HONESTY = 15
-export const BUSINESS_BASE_COST = 200
-/** Cada negocio tapadera adicional cuesta más */
-/** El primero es barato (arranque); los siguientes escalan fuerte porque el blanqueo es el cuello de botella */
-export const businessCost = (owned: number): number => (owned === 0 ? BUSINESS_BASE_COST : BUSINESS_BASE_COST * (owned + 1) * 4)
+export const DEALER_BONUS_COST = D.primaCoste;
+export const DEALER_BONUS_HONESTY = D.primaFiabilidad;
+
+export const BUSINESS_BASE_COST = N.costes[0];
+/** Coste (en Dinero Sucio) del siguiente negocio según los que ya tienes. Pasada la lista, cada uno cuesta N.multiplicadorMasAlla veces el anterior. */
+export const businessCost = (owned: number): number => {
+  const list = N.costes;
+  if (owned < list.length) return list[owned];
+  return Math.round(
+    list[list.length - 1] * N.multiplicadorMasAlla ** (owned - list.length + 1),
+  );
+};
 
 /** Mover el HQ es gratis cada 7 días (GDD §5) */
-export const HQ_MOVE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000
+export const HQ_MOVE_COOLDOWN_MS =
+  E.diasEntreMovimientosHQ * 24 * 60 * 60 * 1000;
 
-/** Dinero limpio inicial: justo un negocio tapadera + un transportista + un camello (con menos hay bloqueo: sin negocio no entra limpio) */
-export const START_CLEAN_CASH = 550
+/** Dinero limpio inicial */
+export const START_CLEAN_CASH = CFG.inicio.dineroLimpio;
 
 // --- Idle ---
 /** Un camello vende 1 unidad cada tanto */
-export const DEALER_INTERVAL_MS = 30_000
+export const DEALER_INTERVAL_MS = sec(D.segundosEntreVentas);
 /** Los camellos cobran su parte: reciben este factor del precio */
-export const DEALER_CUT = 0.8
+export const DEALER_CUT = D.parteQueCobran;
 /** Cada negocio blanquea este Dinero Sucio por tick */
-export const LAUNDER_TICK_MS = 10_000
-export const LAUNDER_DIRTY_PER_TICK = 5
+export const LAUNDER_TICK_MS = sec(N.segundosPorTick);
+export const LAUNDER_DIRTY_PER_TICK = N.sucioPorTick;
 /** Cuánto sale limpio de cada Dinero Sucio blanqueado */
-export const LAUNDER_YIELD = 0.8
-/** El progreso offline de camellos y blanqueo se limita a 8 h */
-export const OFFLINE_CAP_MS = 8 * 60 * 60 * 1000
+export const LAUNDER_YIELD = N.rendimientoLimpio;
+/** El progreso offline de camellos y blanqueo se limita a estas horas */
+export const OFFLINE_CAP_MS = CFG.offline.limiteHoras * 60 * 60 * 1000;
 
 // --- Recetas del laboratorio ---
-export type RecipeId = 'hierba' | 'cristal' | 'polvo'
+export type RecipeId = "hierba" | "cristal" | "polvo";
 
 export interface Recipe {
-  id: RecipeId
-  output: ItemId
-  inputs: Partial<Record<ItemId, number>>
+  id: RecipeId;
+  output: ItemId;
+  inputs: Partial<Record<ItemId, number>>;
   /** Segundos por lote con el laboratorio a nivel 1 */
-  baseSeconds: number
-  minLab: number
+  baseSeconds: number;
+  minLab: number;
   /** Reputación mínima (Tier) */
-  minRep: number
+  minRep: number;
 }
+
+const recipe = (id: RecipeId): Recipe => {
+  const r = CFG.recetas[id];
+  return {
+    id,
+    output: id,
+    inputs: r.ingredientes,
+    baseSeconds: r.segundosPorLote,
+    minLab: r.minLab,
+    minRep: r.minReputacion,
+  };
+};
 
 export const RECIPES: Record<RecipeId, Recipe> = {
-  hierba: { id: 'hierba', output: 'hierba', inputs: { fertilizante: 2 }, baseSeconds: 20, minLab: 1, minRep: 0 },
-  cristal: { id: 'cristal', output: 'cristal', inputs: { quimicos: 2, baterias: 1 }, baseSeconds: 60, minLab: 2, minRep: 100 },
-  polvo: { id: 'polvo', output: 'polvo', inputs: { quimicos: 3, baterias: 2 }, baseSeconds: 150, minLab: 3, minRep: 500 },
-}
+  hierba: recipe("hierba"),
+  cristal: recipe("cristal"),
+  polvo: recipe("polvo"),
+};
 
-/** Cada nivel de laboratorio acelera la producción un 50 % */
-export const labSpeed = (level: number): number => 1 + 0.5 * (level - 1)
-/** Pureza: cada nivel de laboratorio sube el precio de venta de la mercancía un 10 % */
-export const purityMult = (level: number): number => 1 + 0.1 * (level - 1)
+/** Cada nivel de laboratorio acelera la producción */
+export const labSpeed = (level: number): number =>
+  1 + E.laboratorioVelocidadPorNivel * (level - 1);
+/** Pureza: cada nivel de laboratorio sube el precio de venta de la mercancía */
+export const purityMult = (level: number): number =>
+  1 + E.laboratorioPurezaPorNivel * (level - 1);
 
 // --- Reputación ---
 export const REP_PER_UNIT: Record<ItemId, number> = {
-  quimicos: 0,
-  fertilizante: 0,
-  baterias: 0,
-  hierba: 1,
-  cristal: 3,
-  polvo: 8,
-}
+  quimicos: CFG.productos.quimicos.reputacion,
+  fertilizante: CFG.productos.fertilizante.reputacion,
+  baterias: CFG.productos.baterias.reputacion,
+  hierba: CFG.productos.hierba.reputacion,
+  cristal: CFG.productos.cristal.reputacion,
+  polvo: CFG.productos.polvo.reputacion,
+};

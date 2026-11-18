@@ -36,6 +36,8 @@ interface Props {
   onUserMove: () => void;
   /** Toque en el mapa fuera de cualquier icono (cierra los paneles) */
   onMapClick: () => void;
+  /** Toque en el icono del HQ */
+  onHqClick: () => void;
 }
 
 export default function GameMap({
@@ -43,6 +45,7 @@ export default function GameMap({
   onPoiClick,
   onUserMove,
   onMapClick,
+  onHqClick,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const followRef = useRef(follow);
@@ -53,6 +56,8 @@ export default function GameMap({
   moveRef.current = onUserMove;
   const mapClickRef = useRef(onMapClick);
   mapClickRef.current = onMapClick;
+  const hqClickRef = useRef(onHqClick);
+  hqClickRef.current = onHqClick;
 
   useEffect(() => {
     if (!container.current) return;
@@ -71,6 +76,11 @@ export default function GameMap({
     const hqEl = document.createElement("div");
     hqEl.className = "hq-marker";
     hqEl.textContent = "🏠";
+    hqEl.style.cursor = "pointer";
+    hqEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hqClickRef.current();
+    });
     const hqMarker = new maplibregl.Marker({ element: hqEl });
     const showHq = (hq: { lat: number; lng: number } | null): void => {
       if (hq) hqMarker.setLngLat([hq.lng, hq.lat]).addTo(map);
@@ -97,6 +107,7 @@ export default function GameMap({
       if (s.job !== prev.job || s.carriers !== prev.carriers) markWorking(s);
       if (
         s.dealers !== prev.dealers ||
+        s.businesses !== prev.businesses ||
         s.suppliers !== prev.suppliers ||
         s.carriers !== prev.carriers
       )
@@ -262,6 +273,11 @@ export default function GameMap({
           center: [s.focus.lng, s.focus.lat],
           zoom: Math.max(map.getZoom(), 17),
           duration: 700,
+          // Con un panel inferior abierto (50 % de la pantalla), el punto queda en la mitad visible
+          offset: [
+            0,
+            s.focus.lift ? -map.getContainer().clientHeight * 0.22 : 0,
+          ],
         });
       if (s.pois !== prev.pois) refreshPois();
     });

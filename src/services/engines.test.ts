@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { unitPrice } from './tradeEngine'
 import { isBusted, nextHeat } from './heatEngine'
-import { DEALER_REP_SHARE } from '../data/buildings'
+import { DEALER_REP_SHARE, LAUNDER_DIRTY_PER_TICK, LAUNDER_TICK_MS, LAUNDER_YIELD } from '../data/buildings'
 
 const day = new Date(2026, 0, 10, 12, 0)
 const night = new Date(2026, 0, 10, 22, 0)
@@ -158,14 +158,15 @@ describe('camellos: robo y adulteración', () => {
 describe('blanqueo', () => {
   it('convierte sucio en limpio con comisión del 20 %', () => {
     const s = idle({ dirtyCash: 1000, businesses: [{ poiId: 'n/1', name: null }] })
-    const r = syncIdle(s, T0 + 100_000) // 10 ticks x 5
-    expect(r.dirtyCash).toBe(950)
-    expect(r.cleanCash).toBe(40)
+    const r = syncIdle(s, T0 + 10 * LAUNDER_TICK_MS) // 10 ticks
+    const washed = 10 * LAUNDER_DIRTY_PER_TICK
+    expect(r.dirtyCash).toBe(1000 - washed)
+    expect(r.cleanCash).toBe(Math.floor(washed * LAUNDER_YIELD))
   })
   it('no blanquea más de lo que tienes', () => {
     const s = idle({ dirtyCash: 10, businesses: [{ poiId: 'n/1', name: null }] })
     const r = syncIdle(s, T0 + 3_600_000)
     expect(r.dirtyCash).toBe(0)
-    expect(r.cleanCash).toBe(8)
+    expect(r.cleanCash).toBe(Math.floor(10 * LAUNDER_YIELD))
   })
 })

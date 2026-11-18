@@ -105,7 +105,9 @@ export function BottomButtons({
 }: BottomProps) {
   const muted = useMuted();
   const pending = useTutorialStore(tutorialPending);
+  const tutorialOpen = useTutorialStore((s) => s.open);
   const hasHq = useBaseStore((s) => s.hq !== null);
+  const showTutorialBtn = hasHq && pending && !tutorialOpen;
   const auth = useAccountStore((s) => s.auth);
   const sync = useAccountStore((s) => s.sync);
   const CloudIcon =
@@ -133,7 +135,7 @@ export function BottomButtons({
         <button
           className="cartoon-btn w-14 h-14 flex items-center justify-center"
           onClick={onHq}
-          aria-label="Cuartel General"
+          aria-label="Centrar en el Cuartel General"
         >
           <House />
         </button>
@@ -145,21 +147,19 @@ export function BottomButtons({
           <Crosshair />
         </button>
       </div>
-      {hasHq && pending && (
-        // Fuera de la columna y en fixed: queda por encima de los paneles (HQ, comercio)
+      {showTutorialBtn && (
+        // En fixed y con z alto: queda por encima de los paneles (HQ, comercio). Se oculta mientras se ve la tarjeta
         <button
-          className="cartoon-btn w-14 h-14 flex items-center justify-center tutorial-blink fixed right-3 bottom-[calc(max(1rem,env(safe-area-inset-bottom))+8.5rem)] z-[46]"
-          onClick={() => {
-            const t = useTutorialStore.getState();
-            if (t.open) t.hide();
-            else t.show();
-          }}
+          className="cartoon-btn w-11 h-11 flex items-center justify-center tutorial-blink fixed right-3 top-[7rem] z-[46]"
+          onClick={() => useTutorialStore.getState().show()}
           aria-label="Ver el siguiente paso del tutorial"
         >
           <GraduationCap />
         </button>
       )}
-      <div className="absolute right-3 top-[7rem] flex flex-col gap-2">
+      <div
+        className={`absolute right-3 flex flex-col gap-2 ${hasHq && pending ? "top-[10.5rem]" : "top-[7rem]"}`}
+      >
         <button
           className="cartoon-btn w-11 h-11 flex items-center justify-center bg-white!"
           onClick={onClearPois}

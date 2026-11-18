@@ -13,7 +13,8 @@ const RING_CONCURRENCY = 3
 // Si algún día cambian las reglas de clasificación, se sube la versión de cacheKey para invalidarlas.
 
 // v4: POIs de teselas vectoriales (ids "vt/…") con límite por tipo y celda, repartidos por distancia y tipo
-const CACHE_VERSION = 'cell4'
+// v5: más comercios de barrio como negocio tapadera (12 por celda)
+const CACHE_VERSION = 'cell6'
 const cachePrefix = `cartelgo:${CACHE_VERSION}:`
 const cacheKey = (cell: string): string => `${cachePrefix}${H3_RES}:${cell}`
 
@@ -22,7 +23,7 @@ export async function clearPoiCache(): Promise<number> {
   let n = 0
   try {
     for (const k of await keys()) {
-      if (typeof k === 'string' && /^cartelgo:celld*:/.test(k)) {
+      if (typeof k === 'string' && /^cartelgo:cell\d*:/.test(k)) {
         await del(k)
         n++
       }

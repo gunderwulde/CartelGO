@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Users } from "lucide-react";
+import { displayName } from "../data/poiNames";
+import { Truck, Users } from "lucide-react";
 import { handleResult } from "../services/feedback";
 import type { Poi } from "../types/poi";
 import { POI_KINDS } from "../data/poiKinds";
@@ -11,7 +12,7 @@ import {
   DEALER_SLOTS,
   businessCost,
 } from "../data/buildings";
-import { CARRIER_HIRE_COST } from "../data/supply";
+import { CARRIER_HIRE_COST, CARRIER_SLOTS } from "../data/supply";
 import { play } from "../services/sound";
 import { CarrierCard, SupplierCard } from "./SupplyCards";
 import { DealerCard } from "./DealerCard";
@@ -39,6 +40,10 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
   const dealers = useBaseStore((s) => s.dealers);
   const hqLevel = useBaseStore((s) => s.hqLevel);
   const dealer = dealers.find((d) => d.poiId === poi.id);
+  // Los guardados antiguos tienen transportistas sin punto asignado: se muestran en cualquiera
+  const mine =
+    carriers.find((c) => c.supplierId === poi.id) ??
+    carriers.find((c) => !c.supplierId);
   const cleanCash = useInventoryStore((s) => s.cleanCash);
 
   const info = POI_KINDS[poi.kind];
@@ -49,8 +54,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
   const tabs: SheetTab<PoiTab>[] = [{ id: "local", label: "Local" }];
   if (isDealerSpot)
     tabs.push({ id: "personal", label: dealer ? "Camello" : "Personal" });
-  if (isSupplyPoint && supplier)
-    tabs.push({ id: "personal", label: "Transportistas" });
+  if (isSupplyPoint) tabs.push({ id: "personal", label: "Transportistas" });
   const activeTab: PoiTab = tabs.some((t) => t.id === tab) ? tab : "local";
 
   const header = (
@@ -58,7 +62,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
       <PoiBadge kind={poi.kind} size={36} />
       <div className="flex-1 min-w-0">
         <p className="font-black text-lg leading-tight truncate">
-          {poi.name ?? info.label}
+          {displayName(poi) ?? info.label}
         </p>
         <p className="text-xs font-bold opacity-70">
           {info.label} · {info.role}
@@ -79,7 +83,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
       )}
       {isSupplyPoint &&
         (supplier ? (
-          <SupplierCard supplier={supplier} blocked={blocked} />
+          <SupplierCard supplier={supplier} blocked={blocked} bare />
         ) : (
           <div>
             <p className="text-sm font-bold mb-2">
@@ -107,8 +111,8 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
         ) : (
           <div>
             <p className="text-sm font-bold mb-2">
-              Cómpralo para blanquear Dinero Sucio solo (te quedas el 80 %).
-              Tienes ${cleanCash} limpios.
+              Se compra con Dinero Sucio y después blanquea solo (te quedas el
+              80 %). Tienes ${dirtyCash} sucios.
             </p>
             <button
               className="cartoon-btn px-3 py-2 text-sm"
@@ -119,7 +123,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
                 setNotice(r.ok ? r.message : r.reason);
               }}
             >
-              Comprar ${businessCost(businesses.length)}
+              Comprar ${businessCost(businesses.length)} sucios
             </button>
           </div>
         ))}
@@ -155,6 +159,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
                   id: poi.id,
                   kind: poi.kind,
                   name: poi.name,
+                  nameId: poi.nameId,
                   lat: poi.lat,
                   lng: poi.lng,
                 }),
@@ -166,15 +171,33 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
       {isSupplyPoint && (
         <>
           <p className="text-xs font-bold">
-            Los transportistas recogen tu pedido aquí y lo llevan al HQ. Se
-            contratan en el HQ (${CARRIER_HIRE_COST}).
+            Cada punto tiene su propio transportista: solo hace la ruta de aquí
+            al almacén del HQ. Tienes {carriers.length}/
+            {CARRIER_SLOTS[hqLevel - 1]} (los huecos suben con el HQ).
           </p>
-          {carriers.length === 0 && (
-            <p className="text-sm font-black">Aún no tienes transportistas.</p>
+          {mine ? (
+            <CarrierCard carrier={mine} index={carriers.indexOf(mine)} />
+          ) : !supplier ? (
+            <EmptyState
+              icon={<Truck size={32} />}
+              title="Sin contacto"
+              hint="Establece contacto con este proveedor (pestaña Local) para poder contratarle un transportista."
+            />
+          ) : (
+            <EmptyState
+              icon={<Truck size={32} />}
+              title="Sin transportista"
+              hint="Sin él, los pedidos de este punto no llegan al HQ."
+              action={`Contratar · $${CARRIER_HIRE_COST}`}
+              onAction={() => {
+                if (blocked) return;
+                handleResult(
+                  useBaseStore.getState().hireCarrier(poi.id),
+                  "level",
+                );
+              }}
+            />
           )}
-          {carriers.map((c, i) => (
-            <CarrierCard key={c.id} carrier={c} index={i} />
-          ))}
         </>
       )}
     </div>
@@ -187,7 +210,7 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
       tab={activeTab}
       onTab={setTab}
       onClose={onClose}
-      label={poi.name ?? info.label}
+      label={displayName(poi) ?? info.label}
       fixedHeight
     >
       {activeTab === "local" ? local : personal}

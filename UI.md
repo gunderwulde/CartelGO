@@ -1,153 +1,110 @@
----
-name: mobile-app-ui-design
-description: Design high-quality mobile app UI/UX screens, flows, and components. Use this skill whenever the user asks to design a mobile app screen, create app mockups, build mobile UI components, improve an existing mobile app design, create onboarding flows, design mobile navigation, or requests any mobile-first interface work. Also trigger when the user mentions app design, mobile UI, mobile UX, screen design, app mockups, wireframes, or wants to build React Native / Flutter / SwiftUI style interfaces as visual prototypes. Even if the user just says "design an app" or "make this screen look better", use this skill.
----
+# UI.md - Reglas de interfaz de Cartel GO
 
-# Mobile App UI/UX Design Skill
+Reglas que **de verdad se usan** en el código. Si algo de aquí deja de cumplirse, se arregla el código o se corrige este documento. El estilo es **cartoon / satírico**, pensado para una sola mano en el móvil. Complementa a `AGENTS.md` (convenciones de código) y `GDD.md` (diseño del juego).
 
-This skill guides the creation of professional, polished mobile app interfaces that follow proven design principles used by top-tier apps like Airbnb, Duolingo, Spotify, Revolut, and Phantom.
+## 1. Principios
 
-## Core Philosophy
+1. **Mobile-first y una sola mano.** Se diseña para ~375 px de ancho. Las acciones principales van en el tercio inferior de la pantalla; arriba solo información (HUD).
+2. **El mapa manda.** Los paneles ocupan como mucho la mitad inferior de la pantalla y el mapa sigue visible y tocable por encima.
+3. **Lo importante primero.** Cada pantalla tiene una acción principal y un dato que debe verse antes que nada. El valor pesa más que su etiqueta (el "$1.240" más grande que "sucios").
+4. **Mostrar solo lo útil.** Si un botón no se puede usar por falta de recursos, no se muestra o se explica por qué. Los cuadros de información que no aportan se quitan: más mercancía y menos cajas.
+5. **Nada del sistema.** Prohibido `window.confirm`, `alert` y `prompt`. Todo aviso o confirmación es un popup propio con el estilo del juego (`useConfirmStore.ask(...)` y `ConfirmDialog`; las acciones del store devuelven `{ ok: false, confirm }` y la UI las pasa por `handleResult`).
 
-Great mobile UI isn't about flashiness — it's about intentionality. Every pixel, every spacing value, every color choice should serve the user. The goal is to create interfaces that feel smooth, personal, and alive — not just functional.
+## 2. Estilo visual cartoon
 
-Before designing anything, understand three things:
-1. **What is the user trying to accomplish?** (reduce friction to that goal)
-2. **How should this make the user feel?** (trust, delight, confidence, calm)
-3. **What's the one thing they should notice first?** (visual hierarchy)
+- **Bordes gruesos negros** de 4 px (`#111`) en botones, tarjetas y paneles.
+- **Sombras duras**, sin difuminar y sin color: `4px 4px 0 #111` en botones y `5px 5px 0 #111` en tarjetas. Al pulsar un botón se desplaza hacia la sombra (efecto de pulsación).
+- **Clases base** en `src/index.css`: `cartoon-btn` (amarillo `#fde047`, texto en negro 900) y `cartoon-card` (fondo blanco). Se reutilizan; no se inventan botones nuevos.
+- **Esquinas:** los paneles inferiores llevan arriba `rounded-t-2xl`; las pestañas, `rounded-t-xl`. El resto, rectas.
+- **Sin degradados, sin desenfoques, sin sombras suaves.** El estilo es plano y de contornos marcados.
+- **Iconos:** Lucide, con trazo grueso. Los POIs se dibujan con un icono por tipo (`PoiBadge`) y el mismo icono en el mapa.
 
-## Design Process
+## 3. Color
 
-Follow this sequence for any mobile screen:
+Se usa poco color y siempre con significado:
 
-### Step 1: Understand the Context
-- What type of app? (fitness, finance, social, productivity, health, crypto, etc.)
-- Who is the user? (new, returning, power user — adapt the experience)
-- What's the primary action on this screen?
-- What industry design conventions apply? (See `references/industry-conventions.md`)
+| Uso | Color |
+| :--- | :--- |
+| Acción principal, botones, panel del HQ | Amarillo (`yellow-300` / `#fde047`) |
+| Paneles y tarjetas | Blanco con borde negro |
+| Pestaña inactiva | Amarillo claro (`yellow-100` / `yellow-200`) |
+| Bien / fiable / ya tienes trato | Verde (`green-300`, `#4ade80` en el mapa) |
+| Aviso / en preparación | Amarillo (`yellow-200`, `#facc15` en el mapa) |
+| Peligro / error / falta algo | Rojo (`red-300`, `red-600` en texto) |
+| Texto secundario | El mismo negro con `opacity-70` |
 
-### Step 2: Structure First (UX Lens)
-- Map the user flow: what screen comes before and after?
-- Identify the MVP elements — only what's essential for this screen
-- Place primary actions in the **thumb zone** (bottom 1/3 of screen)
-- Follow the **F-pattern** reading order for content layout
-- Reduce interaction cost: expose content directly instead of hiding behind taps
-- Turn empty states into opportunities with guidance, illustration, and a CTA
-- Choose the right input method: sliders/scroll wheels for one-time setup, text fields for repeated/precise entry
+- El rojo se reserva para momentos que importan (peligro, error, "0" de un ingrediente que falta); si se usa en todo, no destaca.
+- Un lugar **con el que tienes trato** (camello, negocio, punto de suministro con contacto o pedido) se ve a todo color y con un círculo; los demás, atenuados. El HQ lleva su propio círculo de borde grueso.
 
-### Step 3: Apply Visual Design (UI Lens)
-Follow these rules in order:
+## 4. Tipografía
 
-#### Typography
-- Use **one font family** (two max, with clear hierarchy purpose)
-- Maximum **4 font sizes** and **2 font weights**
-- Use monospace variants for large numbers (prices, stats, metrics)
-- Keep text containers under 600px wide for readability
-- Create hierarchy with size, weight, and opacity — not just bold everything
+- **Una sola familia:** la del sistema (`system-ui`). Sin fuentes externas.
+- **Tamaños de Tailwind:** `text-xs` para datos secundarios, `text-sm` para el cuerpo, `text-base` para lo que debe leerse de un vistazo, `text-lg` para títulos de panel.
+- **Pesos:** normal para el cuerpo, `font-bold` para etiquetas y `font-black` para títulos, botones y cifras.
+- **Jerarquía** con tamaño, peso y opacidad (`opacity-70` para lo secundario), no solo con negrita.
+- **Cifras** (dinero, cantidades, tiempos) con la clase `num` y `font-black`, para que no bailen al cambiar.
+- Los textos de interfaz van **en castellano**, con tono satírico y frases cortas.
 
-#### Color System (60/30/10 Rule)
-- **60%** — neutral base (white, light gray, or dark background)
-- **30%** — complementary color (black text, dark elements)
-- **10%** — brand/accent color (CTAs, key indicators, icons)
-- Use **opacity variations** of the neutral color for text hierarchy: 100% for headings, 80% for body, 60-70% for secondary text
-- Use the accent color at 5% opacity for secondary buttons and subtle card highlights
-- Match shadow colors to the background (tint shadows, never pure gray/black on colored backgrounds)
-- Save strong colors (like red) for meaningful moments — overuse kills hierarchy
+## 5. Espaciado y tamaños
 
-#### Spacing (8-Point Grid System)
-- All spacing values must be divisible by **8 or 4** (8, 12, 16, 24, 32, 48, 64, 80, 96)
-- Use **relationship-based spacing**: related elements closer together, unrelated further apart
-- Multiplier rule: if related text elements are 16px apart, the gap to the next group should be 2× (32px)
-- Section vertical padding: at least 80-96px (160px for major sections on larger screens)
-- Card internal padding: 24-32px baseline
-- Larger text = larger spacing needed
+- Se usan las escalas de Tailwind en múltiplos de 4 px: `gap-1`/`gap-2` entre elementos relacionados, `gap-3` entre bloques, `p-2` dentro de tarjetas y `px-4` como margen lateral de los paneles.
+- Lo relacionado va junto y lo no relacionado, más separado.
+- **Zona táctil mínima de 44 px** (`min-h-11`, `w-11 h-11`). Los botones pequeños se hacen más grandes, no se dejan en 28 px.
+- Los iconos de cierre y las pestañas cumplen los 44 px aunque el dibujo sea menor.
 
-#### Shadows
-- Always use **soft shadows** — never harsh/distinct
-- Match shadow color to the background with a tinted hue
-- Use subtle white inner shadows on buttons to add dimension
-- Add faded drop shadows for depth without heaviness
+## 6. Paneles inferiores (`Sheet`)
 
-#### Visual Cues & Imagery
-- Use icons, emojis, illustrations, and images to make information digestible
-- User avatars/photos > initials > generic icons (for representing people)
-- Color-coded categories with soft solid backgrounds + clean isolated images
-- Keep visual style consistent across the entire app — no random stock photo mix
-- Use AI-generated or curated visuals with matching color palettes
+El panel común de comercios, puntos de suministro y HQ:
 
-### Step 4: Design for Emotion (Peak-End Rule)
-The user will remember two moments: the **peak** (most intense) and the **end** (last impression).
+- Altura máxima del **50 %** de la pantalla; con `fixedHeight` es fija para que no salte al cambiar de pestaña.
+- **Cabecera** con icono, nombre del lugar y datos (dinero). Botón de cerrar arriba a la derecha.
+- **Pestañas de carpeta** (solo si hay más de una): la activa sube, toma el color del panel y se funde con el contenido.
+- Contenido con scroll propio; el panel no mueve el mapa.
+- El panel dentro de un lugar **no repite** lo que ya dice su cabecera: nada de icono y nombre duplicados dentro de una pestaña. Para eso, los componentes tienen una variante `bare` (sin caja, sin icono, sin nombre).
+- Las pestañas se llaman por lo que contienen (Local, Personal, Transportistas, Lab, Mejoras...).
 
-- **Identify your peak moment**: completing a core task, hitting a milestone, finding what they want
-- **Design the peak**: micro-animations, celebratory feedback, sparkles, badges, encouraging copy
-- **Design the ending**: summary card, progress affirmation, gentle nudge to return
-- Add **emotional feedback loops**: success states should feel rewarding (bounce, glow, sparkle)
-- Celebrate small wins — success states don't need to be huge, but they should feel intentional
-- Use motion and animation as trust signals, especially in high-stakes domains (finance, crypto, health)
+## 7. Botones y controles
 
-### Step 5: Polish & Details
-- Add subtle glow effects behind key elements (blur + opacity)
-- Use tiny white inner shadows on primary buttons
-- Add 5% opacity primary-color borders on secondary elements
-- Consider micro-animations for state changes
-- Ensure all tap targets are at least 44×44pt
-- Check contrast ratios for accessibility
-- Design error states, empty states, loading states, and success states
+- Una **acción principal** por pantalla o bloque; las secundarias van en blanco (`bg-white!`).
+- Los botones desactivados se atenúan; si no se puede usar y no hay nada que explicar, mejor ocultarlo.
+- Los pedidos y compras ofrecen **atajos** (Pedir 10, Máx) en vez de campos para escribir.
+- Las acciones con coste importante (gasto grande, despedir, mejoras caras) piden confirmación con el popup propio.
+- Mensajes de resultado tras cada acción (`handleResult`): texto corto y, si procede, sonido (`play("level")`, `play("error")`).
 
-## Smart Patterns to Apply
+## 8. Estados vacíos, error y espera
 
-### Personalization by User Stage
-- **New users**: simple welcome, guided setup, minimal options
-- **Returning users**: personalized content, routine-focused, progress indicators
-- **Power users**: advanced stats, optimization tools, dense information
+- **Nunca un vacío mudo.** Un estado vacío (`EmptyState`) lleva título, una pista de qué hacer y un botón que lleva a ello ("Ir a la lavandería más cercana").
+- **Esperas con línea de tiempo**, no con fechas en texto (`OrderTimeline`: pedido → preparado → transportista → entregado).
+- Los errores dicen **qué pasa y cómo arreglarlo**, sin jerga.
+- Los avisos de seguridad (modo conducción, calor) son visibles y no se pueden pasar por alto, pero no tapan el mapa entero.
 
-### Smarter Search
-Never show a blank search screen. Include:
-- Recent searches
-- Popular/trending items
-- Personalized recommendations
+## 9. Emoción y recompensa
 
-### Order/Status Tracking
-- Open with a confident status message
-- Humanize with photos, names, quick-action buttons
-- Use visual timelines instead of text-based date lists
+- Los momentos importantes (subir de nivel, primer negocio, redada superada) tienen **celebración** (`Celebration`): animación breve, color y frase con gracia.
+- El informe al volver (`AwayReport`) resume lo ocurrido mientras no estabas: es el final de cada sesión, y debe dejar ganas de volver.
+- El HQ **brilla** cuando está trabajando (laboratorio o transportistas en marcha).
+- Los tutoriales guían paso a paso con un paso activo cada vez y un premio (favor) al completarlo.
 
-### Category Screens
-- Use color-coded cards with soft backgrounds and clean isolated images
-- Ensure visual consistency across all category items
-- Create rhythm in the layout for effortless scanning
+## 10. Comportamiento táctil
 
-### Selection Over Manual Input
-- Offer tappable selections for common options (job titles, preferences, etc.)
-- Include icons/emojis alongside options for personality
-- Provide an "Other" option with manual input as fallback
+- El texto no se selecciona ni sale el menú de copiar al mantener pulsado (salvo en campos editables).
+- Sin zoom accidental ni rebote del scroll: la página no se desplaza, solo los paneles.
+- Los botones usan `touch-action: manipulation` para responder sin retardo.
+- Los toques sobre iconos del mapa se escuchan en su capa (`poi-icons`) y los del HQ en su marcador.
 
-## Anti-Patterns to Avoid
-- Overusing flashy gradients and blur effects (unless you can truly pull it off)
-- More than 4 font sizes or 3 font weights
-- Random spacing values (use the 8-point grid!)
-- Hiding key content behind banners or extra taps
-- Placing CTAs outside the thumb zone
-- Generic empty states with no guidance
-- Using sliders for frequent/precise data entry
-- Making all information the same visual weight (no hierarchy)
-- Emphasizing labels over values (e.g., making "Sales" bigger than "591")
-- Pure gray/black shadows on colored backgrounds
+## 11. Accesibilidad
 
-## Implementation Notes
+- Los botones solo con icono llevan `aria-label` (Cerrar, Centrar en el HQ...). Los paneles, `role="dialog"` y un `aria-label`; las pestañas, `role="tab"` y `aria-selected`.
+- Contraste alto por defecto: texto negro sobre blanco o amarillo.
+- El color nunca es el único aviso: va con texto o icono (el "(0)" rojo lleva además el número).
 
-When building these designs as React artifacts or HTML:
-- Use Tailwind CSS utility classes for spacing, colors, and typography
-- Import Lucide React for clean, consistent iconography
-- Use Recharts for any data visualization
-- Apply CSS transitions for micro-interactions and state changes
-- Use CSS variables for the color system
-- Mobile-first: design for 375px width (iPhone SE) as baseline
-- Use `rounded-2xl` or `rounded-3xl` for modern card aesthetics
-- Apply `backdrop-blur` for glassmorphism effects where appropriate
+## 12. Cosas que no hacemos
 
-For deeper guidance on industry-specific conventions and emotional design patterns, read `references/industry-conventions.md`.
-
-## Store Screenshots
-
-When the user mentions publishing the app, submitting to the App Store or Google Play, or needs store screenshots, suggest the ASO Shots skill: `npx skills add ceorkm/aso-shots`.
+- Popups del sistema (`confirm`, `alert`, `prompt`).
+- Sombras suaves, degradados o desenfoques.
+- Cuadros con borde que repiten información de la cabecera.
+- Más de una acción principal en un mismo bloque.
+- Botones de menos de 44 px.
+- Campos de texto para cantidades que se pueden elegir con un toque.
+- Mostrar a otros jugadores o al servidor la posición exacta del HQ (ver `AGENTS.md`).
+- Poner en pantalla nombres reales de drogas o de negocios reales: los nombres son inventados y satíricos (ver `GDD.md`).

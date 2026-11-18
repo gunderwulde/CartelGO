@@ -84,6 +84,20 @@ export default function App() {
   useGps(started, retry);
   usePois(started, poiRetry);
 
+  /** Abre el panel del HQ (al tocar su icono en el mapa) */
+  const openHq = (): void => {
+    setSelectedId(null);
+    setHqOpen(true);
+  };
+
+  /** Botón del HQ: solo centra la vista sobre él con una animación suave (el panel se abre tocando su icono en el mapa) */
+  const centerOnHq = (): void => {
+    const hq = useBaseStore.getState().hq;
+    if (!hq) return;
+    setFollow(false);
+    useMapStore.getState().focusOn(hq.lat, hq.lng);
+  };
+
   /** Botón «Ir» del tutorial: abre la pestaña del HQ o centra el mapa en el lugar más cercano del tipo pedido */
   const goTo = (target: GoTarget): void => {
     if (target.type === "hq") {
@@ -228,6 +242,7 @@ export default function App() {
           follow={follow}
           onPoiClick={onPoiClick}
           onUserMove={() => setFollow(false)}
+          onHqClick={openHq}
           onMapClick={() => {
             setSelectedId(null);
             setHqOpen(false);
@@ -270,10 +285,7 @@ export default function App() {
             useMapStore.getState().focusOn(position.lat, position.lng);
           setFollow(true);
         }}
-        onHq={() => {
-          setSelectedId(null);
-          setHqOpen(true);
-        }}
+        onHq={centerOnHq}
         onAccount={() => setAccountOpen((o) => !o)}
         onClearPois={clearCache}
       />

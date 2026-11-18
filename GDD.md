@@ -34,7 +34,19 @@
 | `leisure=park` | Parques y Plazas | **Punto de Menudeo** | Venta rápida, bajo riesgo, margen de beneficio medio. |
 | `amenity=bar` / `nightclub` | Bares y Discotecas | **Zona VIP** | Alta demanda y precio x2 entre las 20:00 y las 04:00. |
 | `amenity=police` | Comisarías | **Zona Caliente** | Aumenta el medidor de "Búsqueda" (Heat). Si llega al 100%, pierdes la mercancía que llevas encima. |
-| `shop=laundry` / `car_wash` | Lavanderías / Autolavados | **Negocio Tapadera** | Permite comprar el local para blanquear dinero automáticamente. |
+| `shop=laundry` / `car_wash` y otros comercios (talleres, peluquerías, panaderías, cafeterías, etc.) | Comercios de barrio | **Negocio Tapadera** | Permite comprar el local con Dinero Sucio para blanquear dinero automáticamente. Hasta 12 por celda. |
+
+### Nombres de los lugares
+
+Los nombres reales de OpenStreetMap **no se usan nunca** (no queremos marcas ni negocios de verdad en un juego satírico). Cada lugar recibe un nombre inventado, **temático** y **estable**:
+
+- **Se arma juntando piezas** de varias listas con una plantilla: tipo de local + dueño ("Bar Paco"), + adjetivo ("Panadería Dorada"), + "de(l) sustantivo" ("Taller de la Tuerca") o los tres a la vez ("Bar del Gato Loco"). El género y los artículos concuerdan solos. Hay miles de combinaciones por tema.
+- **Temático:** depende del tipo de negocio que dice el mapa (lavandería, taller, peluquería, panadería, carnicería, cafetería, heladería, librería, bar, pub, discoteca...). Una panadería saca palabras como *Miga*, *Horno* o *Hogaza*; una farmacia, *Jarabe*, *Receta* o *Probeta*. Almacenes, farmacias, parques y comisarías tienen sus propias listas.
+- **Igual para todos y multi-idioma:** el servidor no guarda texto, solo un **código numérico** por lugar (tipo de local + semilla que sale de su id). Cada cliente lo traduce a su idioma con sus propias listas y plantillas, así todos ven el mismo lugar con el mismo nombre en su idioma y añadir un idioma no obliga a regenerar la caché. Las listas de tipos de local solo crecen por el final para no cambiar los nombres ya vistos.
+- Los camellos y negocios guardan también ese código, no el texto, para traducirse al cambiar de idioma.
+- Los nombres salen en los paneles de cada lugar, las fichas y las listas del HQ; no se dibujan sobre el mapa.
+
+**Resaltado en el mapa:** los lugares con los que tienes trato (camello contratado, negocio, punto de suministro con contacto o pedido en curso) llevan un círculo de color y el icono a pleno color; los demás se ven atenuados. El HQ lleva un círculo propio de borde grueso para localizarlo mejor.
 
 ---
 
@@ -46,7 +58,7 @@
    - *Cristal Azul* (Tier 2 - Requiere Laboratorio Básico, valor medio).
    - *Polvo Estelar* (Tier 3 - Requiere Laboratorio Avanzado, alto valor).
 3. **Dinero Sucio (Cash):** Se gana vendiendo en la calle o mediante camellos. No se puede usar para mejorar edificios principales y se pierde si te atrapa la policía.
-4. **Dinero Limpio (Banco):** Se obtiene blanqueando Dinero Sucio. Sirve para ampliar el HQ, comprar negocios tapadera y desbloquear tecnologías.
+4. **Dinero Limpio (Banco):** Se obtiene blanqueando Dinero Sucio. Sirve para ampliar el HQ y desbloquear tecnologías. (Los negocios tapadera se compran con Dinero Sucio: es lo que luego lo blanquea.)
 5. **Reputación (XP):** Sube al completar entregas y expandir territorio. Desbloquea nuevos Tiers.
 
 ---
@@ -68,43 +80,50 @@ El jugador no carga mercancía encima (no hay mochila: se dedica a los negocios,
 | **Punto de Suministro** | Tiempo de preparación y cantidad máxima por pedido | 6 min · 20 uds | 3 min · 50 uds | 1 min · 120 uds |
 | **Transportista** | Duración del viaje y capacidad por viaje | 10 min · 20 uds | 5 min · 50 uds | 2 min · 120 uds |
 
-- **Mejorar un Punto de Suministro:** se negocia **en persona** (hay que ir al sitio) al precio normal, o **por teléfono** (desde cualquier lugar) a un precio **x3**. Se paga con **Dinero Limpio**: Nivel 2 = $600, Nivel 3 = $2.000 (en persona).
-- **Contratar y mejorar Transportistas:** se reclutan igual que los Camellos (coste en Dinero Limpio, huecos limitados por el nivel del HQ) y se mejoran con Dinero Limpio. Los transportistas se gestionan desde el HQ, sin ir a ningún sitio.
+- **Mejorar un Punto de Suministro:** se negocia **en persona** (hay que ir al sitio) al precio normal, o **por teléfono** (desde cualquier lugar) a un precio **x3**. Se paga con **Dinero Limpio**: Nivel 2 = $800, Nivel 3 = $6.000 (en persona).
+- **Contratar y mejorar Transportistas:** se reclutan igual que los Camellos (coste en Dinero Limpio, huecos limitados por el nivel del HQ) y se mejoran con Dinero Limpio. Cada transportista queda **ligado a un Punto de Suministro** (como el camello a su bar) y solo hace la ruta de ese punto: se contrata y mejora en el panel del propio almacén o farmacia (pestaña *Transportistas*), una vez establecido el contacto. Los huecos totales dependen del nivel del HQ (1 / 2 / 3).
 - **Cuello de botella:** el ritmo de abastecimiento lo marca el eslabón más lento (preparación, número de transportistas o capacidad de viaje), así que conviene mejorar toda la cadena.
 
 ---
 
-## 4 ter. Balance y ritmo de progresión (provisional)
+## 4 ter. Balance y ritmo de progresión
 
-Cifras de partida: **$550 limpios** (justo un negocio tapadera + un transportista + un camello; con menos el jugador se bloquea porque sin negocio no entra Dinero Limpio) y $100 sucios.
+**Todas las cifras viven en `src/data/balance.json`** (precios, recetas, costes, tiempos, camellos, blanqueo, calor, favores, anuncio, GPS). Se tocan ahí y el juego las lee; los tiempos van en segundos o minutos (lo dice el nombre) y las listas se indexan por nivel (el primer valor es el nivel 1).
+
+Para ver el efecto de un cambio: `npx vitest run balanceSim --reporter=verbose --silent=false`. Es una simulación con los motores reales de un jugador atento que sigue siempre el mismo plan de compras e imprime la línea de tiempo (y falla si el ritmo se sale de lo razonable).
+
+Cifras de partida: **$400 limpios** (transportista + camello + algo de margen) y **$300 sucios** (el primer pedido y el primer negocio tapadera, que se paga con sucio).
 
 **Costes en Dinero Limpio**
 
 | Concepto | Nivel 2 | Nivel 3 |
 | :--- | :--- | :--- |
-| Cuartel General | $1.200 | $4.800 |
-| Laboratorio | $1.600 | $6.000 |
-| Almacén | $1.000 | $3.600 |
-| Punto de Suministro / Transportista | $600 | $2.000 |
+| Cuartel General | $2.500 | $18.000 |
+| Laboratorio | $3.500 | $24.000 |
+| Almacén | $2.000 | $12.000 |
+| Punto de Suministro / Transportista | $800 | $6.000 |
 
-Camello $150 · Transportista $200 · Negocio tapadera: el primero $200 y luego $1.600, $2.400, $3.200…
+Camello $150 · Transportista $200 · Negocio tapadera (en **Dinero Sucio**): $200, $700, $1.500, $3.000, $5.500 y después ×1,8 cada uno.
 
-**Cuello de botella:** el blanqueo (cada negocio convierte 30 sucios/min en 24 limpios/min). La producción supera pronto lo que se puede blanquear, por eso los negocios adicionales escalan fuerte.
+**Cuello de botella:** el blanqueo (cada negocio convierte 18 sucios/min en 14 limpios/min). Mientras tienes un solo negocio, blanquea todo el sucio que entra, así que ahorrar sucio para el segundo es difícil hasta que mejoras el suministro: es la tensión del arranque. Más adelante la producción supera lo que se puede blanquear y los negocios adicionales son el sumidero de sucio.
 
-**Cronograma de un jugador atento** (cifras de una simulación antigua en la que el jugador también vendía a mano; ahora todo lo venden los camellos y habrá que volver a simular):
+**Ritmo medido en la simulación** (jugador atento, sin ir a la calle más que para contratar):
 
 | Momento | Hito |
 | :--- | :--- |
-| Minuto 0 | Primer negocio, transportista y camello. Empieza la Hierba Risona. |
-| Primera hora | Segundo camello y transportista al nivel 2. |
-| Horas 2-5 | HQ y laboratorio al nivel 2 (Laboratorio Básico), segundo negocio, camellos 3 y 4, almacén al nivel 2. |
-| Día 1-2 | Reputación 100 vendiendo a mano: se desbloquea el **Cristal Azul**. |
-| Horas 6-12 | Segundo transportista, HQ y laboratorio al nivel 3, camellos 5 y 6, negocios 3-5. Toda la infraestructura mejorada. |
-| Día 4 | Reputación 500: se desbloquea el **Polvo Estelar**. |
+| Minuto 0 | Primer transportista, camello y negocio tapadera. Empieza la Hierba Risona. |
+| Primera hora | Segundo camello. |
+| Horas 2-4 | Transportista y proveedor al nivel 2; reputación 100: se puede desbloquear el **Cristal Azul** (falta el Laboratorio Básico). |
+| Horas 5-9 | HQ y laboratorio al nivel 2, segundo negocio, camellos 3 y 4, segundo transportista. |
+| Horas 10-20 | Mejoras de suministro, almacén 2, tercer negocio. |
+| Horas 24-45 | HQ y laboratorio al nivel 3, camellos 5 y 6, tercer transportista, almacén 3, negocios 4-5. Toda la infraestructura mejorada (~44 h). |
+| ~6 h | Reputación 500: el **Polvo Estelar** queda disponible en cuanto haya Laboratorio Avanzado. |
+
+Dos atascos que la simulación sacó a la luz y están corregidos o vigilados: (1) el almacén lleno de precursores sobrantes dejaba al laboratorio sin sitio para el producto (ahora el tope del laboratorio cuenta solo producto terminado); (2) si el sucio llega a 0 con el blanqueo activo, no se puede pedir y la partida se para: la salida es ensuciar limpio en el HQ o el anuncio de rescate (§4 quinquies).
 
 La reputación sube con las ventas de los camellos (1 / 3 / 8 por unidad según producto): cuantos más camellos y producto, más rápido se avanza de Tier.
 
-**Pendientes de balance:** pasadas las ~12 h todo está mejorado y el dinero se acumula sin uso. Hacen falta más sumideros (más niveles, prestigio, expansión territorial de la Fase 2). Los camellos dan el 25 % de la reputación por unidad vendida y la *Prima* (§4 quater) es un primer sumidero de Dinero Sucio.
+**Pendientes de balance:** pasadas las ~44 h todo está mejorado y el dinero se acumula sin uso. Hacen falta más sumideros (más niveles, prestigio, expansión territorial de la Fase 2). La *Prima* (§4 quater) es un primer sumidero de Dinero Sucio.
 
 ---
 
@@ -137,7 +156,7 @@ Los precursores se pagan con **Dinero Sucio**, pero el blanqueo automático lo c
 
 1. **Ensuciar dinero.** El jugador puede cambiar Dinero Limpio por Dinero Sucio en el HQ (pestaña Mejoras). Un cambista se queda con la mitad: de cada $100 limpios salen $50 sucios. Es la salida de emergencia si el sucio se agota, y cara a propósito para que no sustituya al blanqueo normal. Los pedidos se pagan siempre con sucio.
 2. **Reembolso al despedir.** Despedir a un camello devuelve el **50 %** de su coste de contratación, en Dinero Limpio (lo que pagaste).
-3. **Aviso de bloqueo.** Si una compra en limpio (o ensuciar dinero) te deja sin los $200 necesarios para el primer negocio tapadera y aún no tienes ninguno, la app pregunta antes de ejecutarla.
+3. **Negocio con sucio.** El negocio tapadera se paga con Dinero Sucio (no tendría sentido «blanquear» pagando con limpio). Si gastas todo el sucio en pedidos antes de tener el primero, la salida es ensuciar limpio en el HQ o esperar a las ventas del camello.
 
 4. **Anuncio de rescate.** Si el jugador tiene menos de $30 sucios y menos de $100 limpios, el juego le propone ver un anuncio a cambio de **$100 sucios**. El anuncio bloquea la pantalla 20 s (sin poder cerrarlo) y después paga. Hay una espera de 5 min entre rescates. De momento es un hueco de prueba («AD HERE»), sin red publicitaria; la recompensa es siempre en Dinero Sucio, nunca en limpio.
 
@@ -151,7 +170,7 @@ Tercera moneda, aparte del Dinero Sucio y el Limpio, para no alterar la economí
 
 - **Qué salta:** el tiempo de preparación de un pedido, el viaje de un transportista y el lote que está cocinando el laboratorio. También despista a la policía (Heat a 0, 3 favores).
 - **Precio:** 1 favor por cada 5 minutos de espera restantes, redondeando hacia arriba (mínimo 1). Una espera de 2 h cuesta 24.
-- **Cómo se consiguen:** 5 de regalo al empezar y 1 por cada paso del tutorial. Más adelante: hitos de reputación, premio diario y anuncios con recompensa.
+- **Cómo se consiguen:** 5 de regalo al empezar y 1 por cada paso del tutorial. **Viendo un anuncio** (botón en la pestaña Mejoras del HQ): 20 s de anuncio y +1 favor, con una espera de 1 min entre anuncios (`anuncio.favoresPorAnuncio` y `esperaFavorMinutos` en balance.json). Más adelante: hitos de reputación y premio diario.
 - **Dónde se ve:** en la barra superior y en la cabecera del HQ. Los botones de saltar aparecen junto a cada espera.
 
 **Herramientas de prueba.** Con `?dev` en la URL aparece un panel (DEV) para dar dinero, favores y reputación, adelantar el reloj 1 h u 8 h y saltar o reiniciar el tutorial. No existe para los jugadores.

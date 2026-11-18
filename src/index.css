@@ -55,10 +55,19 @@ textarea,
   background: #fff;
 }
 
+/* Círculo con borde grueso como el de los POIs resaltados, para ver el HQ mejor */
 .hq-marker {
-  font-size: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  font-size: 28px;
   line-height: 1;
-  filter: drop-shadow(2px 2px 0 #111);
+  border-radius: 50%;
+  border: 4px solid #111;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 2px 2px 0 #111;
 }
 
 /* HQ trabajando (laboratorio o transportistas en marcha): brilla (sin transform: MapLibre lo usa para colocar el marcador) */
@@ -68,10 +77,10 @@ textarea,
 @keyframes hq-glow {
   0%,
   100% {
-    filter: drop-shadow(2px 2px 0 #111) drop-shadow(0 0 2px #facc15);
+    box-shadow: 2px 2px 0 #111, 0 0 2px #facc15;
   }
   50% {
-    filter: drop-shadow(2px 2px 0 #111) drop-shadow(0 0 12px #facc15) drop-shadow(0 0 6px #facc15);
+    box-shadow: 2px 2px 0 #111, 0 0 14px 4px #facc15;
   }
 }
 

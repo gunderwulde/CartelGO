@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode } from "react";
 
 /** Lista vacía con guía: qué falta, para qué sirve y un botón que lleva a hacerlo */
 export function EmptyState({
@@ -8,11 +8,11 @@ export function EmptyState({
   action,
   onAction,
 }: {
-  icon: ReactNode
-  title: string
-  hint: string
-  action?: string
-  onAction?: () => void
+  icon: ReactNode;
+  title: string;
+  hint: string;
+  action?: string;
+  onAction?: () => void;
 }) {
   return (
     <div className="border-4 border-dashed border-black bg-yellow-100 p-4 flex flex-col items-center gap-2 text-center">
@@ -27,5 +27,5 @@ export function EmptyState({
         </button>
       )}
     </div>
-  )
+  );
 }

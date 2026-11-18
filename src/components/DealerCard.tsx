@@ -4,6 +4,7 @@ import {
   DEALER_REVEAL_SALES,
   REFUND_SHARE,
 } from "../data/buildings";
+import { displayName } from "../data/poiNames";
 import { POI_KINDS } from "../data/poiKinds";
 import { fmtTime } from "../services/fmt";
 import { handleResult } from "../services/feedback";
@@ -46,7 +47,9 @@ export function DealerCard({
           <span className="flex-1" />
         ) : (
           <span className="flex-1 font-black truncate">
-            {d.name ?? POI_KINDS[d.kind].label}
+            {d.name || d.nameId
+              ? displayName({ ...d, id: d.poiId })
+              : POI_KINDS[d.kind].label}
           </span>
         )}
         <span

@@ -1,0 +1,176 @@
+{
+  "_ayuda": "Todos los valores de balance del juego. Tiempos en segundos o minutos (lo indica el nombre), dinero en $. Los índices de las listas son nivel-1 (el primer valor es el nivel 1).",
+  "inicio": {
+    "dineroSucio": 300,
+    "dineroLimpio": 400
+  },
+  "productos": {
+    "_ayuda": "Precio base en Dinero Sucio por unidad y reputación que da cada unidad vendida por un camello.",
+    "quimicos": {
+      "precio": 10,
+      "reputacion": 0
+    },
+    "fertilizante": {
+      "precio": 6,
+      "reputacion": 0
+    },
+    "baterias": {
+      "precio": 8,
+      "reputacion": 0
+    },
+    "hierba": {
+      "precio": 30,
+      "reputacion": 1
+    },
+    "cristal": {
+      "precio": 90,
+      "reputacion": 3
+    },
+    "polvo": {
+      "precio": 250,
+      "reputacion": 8
+    }
+  },
+  "recetas": {
+    "_ayuda": "segundosPorLote es con el laboratorio a nivel 1. minLab: nivel de laboratorio; minReputacion: Tier necesario.",
+    "hierba": {
+      "ingredientes": {
+        "fertilizante": 2
+      },
+      "segundosPorLote": 20,
+      "minLab": 1,
+      "minReputacion": 0
+    },
+    "cristal": {
+      "ingredientes": {
+        "quimicos": 2,
+        "baterias": 1
+      },
+      "segundosPorLote": 60,
+      "minLab": 2,
+      "minReputacion": 100
+    },
+    "polvo": {
+      "ingredientes": {
+        "quimicos": 3,
+        "baterias": 2
+      },
+      "segundosPorLote": 150,
+      "minLab": 3,
+      "minReputacion": 500
+    }
+  },
+  "mercado": {
+    "factorAlmacen": 0.6,
+    "nocheDesdeHora": 20,
+    "nocheHastaHora": 4,
+    "factorNoche": 2
+  },
+  "edificios": {
+    "nivelMaximo": 3,
+    "costeHQ": [0, 2500, 18000],
+    "costeLaboratorio": [0, 3500, 24000],
+    "costeAlmacen": [0, 2000, 12000],
+    "capacidadAlmacen": [100, 250, 600],
+    "huecosCamellos": [2, 4, 6],
+    "huecosTransportistas": [1, 2, 3],
+    "laboratorioVelocidadPorNivel": 0.5,
+    "laboratorioPurezaPorNivel": 0.1,
+    "diasEntreMovimientosHQ": 7
+  },
+  "camellos": {
+    "costeContratar": 150,
+    "reembolsoAlDespedir": 0.5,
+    "segundosEntreVentas": 30,
+    "parteQueCobran": 0.8,
+    "probRoboBase": 0.12,
+    "probAdulteracionBase": 0.1,
+    "parteQueSeQuedanEnRobo": 0.4,
+    "parteQueCobrasEnAdulteracion": 0.7,
+    "calorPorAdulteracion": 5,
+    "reputacionPerdidaPorAdulteracion": 1,
+    "parteDeReputacion": 1,
+    "ventasParaConocerlo": 20,
+    "primaCoste": 200,
+    "primaFiabilidad": 15
+  },
+  "negocios": {
+    "costes": [200, 700, 1500, 3000, 5500],
+    "multiplicadorMasAlla": 1.8,
+    "_ayudaCostes": "Dinero Sucio que cuesta el 1.º, 2.º, 3.º... negocio tapadera.",
+    "segundosPorTick": 10,
+    "sucioPorTick": 3,
+    "rendimientoLimpio": 0.8
+  },
+  "suministro": {
+    "proveedores": [
+      {
+        "preparaSegundos": 360,
+        "maxUnidades": 20,
+        "costeMejora": 0
+      },
+      {
+        "preparaSegundos": 180,
+        "maxUnidades": 50,
+        "costeMejora": 800
+      },
+      {
+        "preparaSegundos": 60,
+        "maxUnidades": 120,
+        "costeMejora": 6000
+      }
+    ],
+    "factorMejoraPorTelefono": 3,
+    "transportistas": [
+      {
+        "viajeSegundos": 600,
+        "capacidad": 20,
+        "costeMejora": 0
+      },
+      {
+        "viajeSegundos": 300,
+        "capacidad": 50,
+        "costeMejora": 800
+      },
+      {
+        "viajeSegundos": 120,
+        "capacidad": 120,
+        "costeMejora": 6000
+      }
+    ],
+    "costeContratarTransportista": 200,
+    "rendimientoEnsuciar": 0.5,
+    "importesEnsuciar": [50, 200]
+  },
+  "calor": {
+    "maximo": 100,
+    "subidaPorSegundoEnZonaPolicia": 2,
+    "bajadaPorSegundo": 0.5,
+    "trasRedada": 30,
+    "parteDelAlmacenConfiscada": 0.3,
+    "radioZonaPoliciaMetros": 150
+  },
+  "favores": {
+    "iniciales": 5,
+    "minutosPorFavor": 5,
+    "costeCalmarPolicia": 3
+  },
+  "anuncio": {
+    "sucioPorDebajoDe": 30,
+    "limpioPorDebajoDe": 100,
+    "recompensaSucio": 100,
+    "duracionSegundos": 20,
+    "esperaMinutos": 5,
+    "favoresPorAnuncio": 1,
+    "esperaFavorMinutos": 1
+  },
+  "offline": {
+    "limiteHoras": 8
+  },
+  "gps": {
+    "velocidadMaximaKmh": 25,
+    "velocidadReanudarKmh": 20,
+    "radioInteraccionMetros": 1500,
+    "_ayudaRadio": "TEMPORAL para pruebas (1500). Valor de diseño: 50."
+  }
+}

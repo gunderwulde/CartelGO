@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Building2, FlaskConical, Package, Truck, Users } from "lucide-react";
+import { displayName } from "../data/poiNames";
+import { Building2, Package, Users } from "lucide-react";
 import { ITEMS, type ItemId } from "../data/items";
 import {
   DEALER_SLOTS,
@@ -27,12 +28,17 @@ import { fmtTime } from "../services/fmt";
 import { handleResult } from "../services/feedback";
 import { CALM_HEAT_COST, favorCost } from "../services/favors";
 import {
-  CARRIER_HIRE_COST,
+  AD_FAVOR_COOLDOWN_MS,
+  AD_FAVOR_REWARD,
+  canWatchFavorAd,
+} from "../services/adRescue";
+import { useAdStore } from "../store/adStore";
+import {
   CARRIER_SLOTS,
   DIRTY_EXCHANGE_STEPS,
   DIRTY_EXCHANGE_YIELD,
 } from "../data/supply";
-import { CarrierCard, SupplierCard } from "./SupplyCards";
+import { SupplierCard } from "./SupplyCards";
 import { EmptyState } from "./EmptyState";
 import { Sheet } from "./Sheet";
 import { DealerCard } from "./DealerCard";
@@ -134,17 +140,13 @@ export default function HqPanel({
             </button>
           )}
         </div>
-      ) : (
-        <EmptyState
-          icon={<FlaskConical size={32} />}
-          title="El laboratorio está parado"
-          hint="Los precursores salen del almacén. Lanza un lote abajo o pide ingredientes."
-          action={carried(base.storage) === 0 ? "Pedir suministro" : undefined}
-          onAction={() => setTab("suministro")}
-        />
-      )}
+      ) : null}
       {Object.values(RECIPES).map((r) => {
         const locked = base.labLevel < r.minLab || base.reputation < r.minRep;
+        // Sin ingredientes para al menos un lote no hay botones de cocinar
+        const canCook = (Object.entries(r.inputs) as [ItemId, number][]).every(
+          ([i, n]) => (base.storage[i] ?? 0) >= n,
+        );
         return (
           <div
             key={r.id}
@@ -152,9 +154,22 @@ export default function HqPanel({
           >
             <p className="font-black">{ITEMS[r.output].label}</p>
             <p className="text-xs font-bold">
-              {(Object.entries(r.inputs) as [ItemId, number][])
-                .map(([i, n]) => `${n}× ${ITEMS[i].label}`)
-                .join(" + ")}{" "}
+              {(Object.entries(r.inputs) as [ItemId, number][]).map(
+                ([i, n], k) => {
+                  const have = base.storage[i] ?? 0;
+                  return (
+                    <span key={i}>
+                      {k > 0 && " + "}
+                      {n}× {ITEMS[i].label}{" "}
+                      <span
+                        className={`num ${have === 0 ? "text-red-600 font-black" : ""}`}
+                      >
+                        ({have})
+                      </span>
+                    </span>
+                  );
+                },
+              )}{" "}
               · {fmtTime(batchDurationMs(r.id, base.labLevel))} por lote
             </p>
             {locked ? (
@@ -162,7 +177,7 @@ export default function HqPanel({
                 Requiere {LAB_NAMES[r.minLab - 1]}
                 {r.minRep > 0 ? ` y ${r.minRep} de reputación` : ""}
               </p>
-            ) : (
+            ) : !canCook ? null : (
               <div className="flex gap-2 mt-1">
                 <button
                   className={btn}
@@ -238,30 +253,13 @@ export default function HqPanel({
   const supplierList = Object.values(base.suppliers);
   const supply = (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-black">
-        Transportistas {base.carriers.length}/{CARRIER_SLOTS[base.hqLevel - 1]}
-      </p>
       <p className="text-xs font-bold">
         Los puntos de suministro preparan tu pedido y un transportista libre lo
-        recoge y lo trae al almacén. Sin transportistas no llega nada.
+        recoge y lo trae al almacén. Cada punto tiene el suyo:{" "}
+        {base.carriers.length}/{CARRIER_SLOTS[base.hqLevel - 1]} contratados; se
+        contratan y mejoran en el panel de cualquier almacén o farmacia (pestaña
+        Transportistas).
       </p>
-      {base.carriers.length === 0 && (
-        <EmptyState
-          icon={<Truck size={32} />}
-          title="Sin transportistas"
-          hint="Sin ellos no llega nada: son los que recogen tu pedido y lo traen al almacén."
-        />
-      )}
-      {base.carriers.map((c, i) => (
-        <CarrierCard key={c.id} carrier={c} index={i} />
-      ))}
-      <button
-        className={btn}
-        onClick={() => report(base.hireCarrier(), "level")}
-      >
-        Contratar transportista ${CARRIER_HIRE_COST}
-      </button>
-
       {(() => {
         const last = loadLastOrder();
         const sp = last ? base.suppliers[last.poiId] : undefined;
@@ -275,7 +273,7 @@ export default function HqPanel({
             }
           >
             Repetir: {last.qty >= 999 ? "máx." : last.qty} ×{" "}
-            {ITEMS[last.item].label} en {sp.poi.name ?? "proveedor"}
+            {ITEMS[last.item].label} en {displayName(sp.poi) ?? "proveedor"}
           </button>
         );
       })()}
@@ -335,8 +333,17 @@ export default function HqPanel({
       <p className="text-sm font-black mt-4">Favores ({base.favors})</p>
       <p className="text-xs font-bold">
         Sirven para saltarte esperas: pedidos, viajes y lotes (1 favor cada 5
-        min). Los consigues avanzando en el tutorial.
+        min). Los consigues avanzando en el tutorial o viendo un anuncio.
       </p>
+      <button
+        className={`${btn} bg-white!`}
+        disabled={!canWatchFavorAd(base.adFavorAt, now)}
+        onClick={() => useAdStore.getState().start("favor")}
+      >
+        {canWatchFavorAd(base.adFavorAt, now)
+          ? `Ver anuncio: +${AD_FAVOR_REWARD} favor`
+          : `Otro anuncio en ${fmtTime(AD_FAVOR_COOLDOWN_MS - (now - base.adFavorAt))}`}
+      </button>
       <button
         className={btn}
         disabled={inv.heat <= 0}
@@ -371,14 +378,14 @@ export default function HqPanel({
         <EmptyState
           icon={<Building2 size={32} />}
           title="Sin negocio tapadera"
-          hint={`Cómpralo en una lavandería o autolavado (${businessCost(0)} limpios) para blanquear dinero solo.`}
+          hint={`Cómpralo en una lavandería o autolavado (${businessCost(0)} sucios) para blanquear dinero solo.`}
           action="Ir a la lavandería más cercana"
           onAction={() => onGo({ type: "poi", kinds: ["cover"] })}
         />
       )}
       {base.businesses.map((b) => (
         <p key={b.poiId} className="text-sm font-bold">
-          • {b.name ?? "Negocio sin nombre"}
+          • {displayName({ id: b.poiId, kind: "cover", ...b })}
         </p>
       ))}
 

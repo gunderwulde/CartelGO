@@ -20,13 +20,13 @@ interface Step {
 /** Primeros pasos. Cada uno se da por hecho solo cuando se cumple (flags[i+1] de abajo; el 0 es colocar el HQ) */
 const STEPS: Step[] = [
   {
-    title: "Contrata un transportista",
-    hint: "En el HQ, pestaña Suministro. Él te traerá la mercancía.",
-    go: { type: "hq", tab: "suministro" },
-  },
-  {
     title: "Haz contacto con un proveedor",
     hint: "Acércate a un almacén o farmacia, toca su icono y pulsa «Establecer contacto».",
+    go: { type: "poi", kinds: ["warehouse", "pharmacy"] },
+  },
+  {
+    title: "Contrata un transportista",
+    hint: "En un almacén o farmacia, pestaña Transportistas (ya con contacto establecido). Él te traerá la mercancía.",
     go: { type: "poi", kinds: ["warehouse", "pharmacy"] },
   },
   {
@@ -53,13 +53,13 @@ const STEPS: Step[] = [
 if (STEPS.length !== TUTORIAL_STEPS)
   throw new Error("TUTORIAL_STEPS no coincide con los pasos");
 
-/** Una cifra por hito: HQ colocado, transportista, contacto, pedido, producción, camello, negocio */
+/** Una cifra por hito: HQ colocado, contacto, transportista, pedido, producción, camello, negocio */
 function useFlags(): string {
   return useBaseStore((s) =>
     [
       s.hq !== null,
-      s.carriers.length > 0,
       Object.keys(s.suppliers).length > 0,
+      s.carriers.length > 0,
       Object.values(s.suppliers).some((x) => x.order) ||
         carried(s.storage) > 0 ||
         s.job !== null ||
@@ -144,7 +144,7 @@ export default function Tutorial({
   if (done || flags[0] !== "1" || phase === null) return null;
   // Siempre por encima del resto de pantallas (HQ, comercio), por debajo de los avisos
   const base =
-    "fixed right-[4.75rem] w-[calc((100%-5.75rem)*0.65)] bottom-[calc(max(1rem,env(safe-area-inset-bottom))+8.5rem)] cartoon-card bg-yellow-200! p-2 z-[45] " +
+    "fixed inset-x-3 top-[7rem] cartoon-card bg-yellow-200! p-3 z-[45] " +
     (phase === "in" ? "tutorial-in" : "tutorial-out");
 
   const backdrop =

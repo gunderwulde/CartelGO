@@ -8,17 +8,23 @@ const POI_SOURCE = 'pois'
 const POLICE_SOURCE = 'police-zones'
 
 /** Actividad del jugador en un lugar: se resalta con un aro de color */
-export type PoiActivity = 'dealer' | 'prep' | 'transit'
+export type PoiActivity = 'deal' | 'dealer' | 'prep' | 'transit'
 
 interface ActivityInput {
   dealers: { poiId: string }[]
+  businesses?: { poiId: string }[]
   suppliers: Record<string, { order: unknown }>
   carriers: { trip: { supplierId: string } | null }[]
 }
 
-/** Qué lugares tienen camello (verde), pedido preparándose (amarillo) o transportista en camino (azul) */
-export function poiActivities({ dealers, suppliers, carriers }: ActivityInput): Record<string, PoiActivity> {
+/**
+ * Lugares con los que tienes trato: proveedor con contacto o negocio propio (aro blanco), camello (verde),
+ * pedido preparándose (amarillo) o transportista en camino (azul). El resto se ve atenuado.
+ */
+export function poiActivities({ dealers, businesses = [], suppliers, carriers }: ActivityInput): Record<string, PoiActivity> {
   const out: Record<string, PoiActivity> = {}
+  for (const b of businesses) out[b.poiId] = 'deal'
+  for (const id of Object.keys(suppliers)) out[id] = 'deal'
   for (const d of dealers) out[d.poiId] = 'dealer'
   for (const [id, sup] of Object.entries(suppliers)) if (sup.order) out[id] = 'prep'
   for (const c of carriers) if (c.trip) out[c.trip.supplierId] = 'transit'
@@ -62,10 +68,10 @@ export function addPoiLayers(map: MlMap): void {
     filter: ['!=', ['get', 'activity'], ''],
     paint: {
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 14, 16, 22, 18, 28],
-      'circle-color': ['match', ['get', 'activity'], 'dealer', '#4ade80', 'prep', '#facc15', '#38bdf8'],
+      'circle-color': ['match', ['get', 'activity'], 'deal', '#ffffff', 'dealer', '#4ade80', 'prep', '#facc15', '#38bdf8'],
       'circle-opacity': 0.55,
       'circle-stroke-width': 4,
-      'circle-stroke-color': ['match', ['get', 'activity'], 'dealer', '#16a34a', 'prep', '#ca8a04', '#0284c7'],
+      'circle-stroke-color': ['match', ['get', 'activity'], 'deal', '#111111', 'dealer', '#16a34a', 'prep', '#ca8a04', '#0284c7'],
     },
   })
   map.addLayer({
@@ -77,6 +83,10 @@ export function addPoiLayers(map: MlMap): void {
       'icon-size': ['interpolate', ['linear'], ['zoom'], 13, 0.5, 16, 0.8, 18, 1],
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
+    },
+    // Sin trato: más tenue (la policía no admite trato y se ve siempre igual)
+    paint: {
+      'icon-opacity': ['case', ['any', ['!=', ['get', 'activity'], ''], ['==', ['get', 'kind'], 'police']], 1, 0.55],
     },
   })
   // Las insignias se dibujan en un canvas (async); la capa las muestra en cuanto estén registradas
