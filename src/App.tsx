@@ -18,7 +18,7 @@ import { useSimulation } from './services/useSimulation'
 import { haversine, INTERACTION_RADIUS_M } from './services/geoService'
 import { StatsBar, Toast } from './components/Stats'
 import TradeModal from './components/TradeModal'
-import { BottomButtons, DrivingWarning, GpsBlocker, NearbyPois, PlaceHqBanner, PoiStatus, TopBar } from './components/Hud'
+import { BottomButtons, DrivingWarning, GpsBlocker, PlaceHqBanner, PoiStatus, TopBar } from './components/Hud'
 
 // MapLibre pesa ~1 MB: no se descarga hasta que se empieza a jugar
 const GameMap = lazy(() => import('./map/GameMap'))
@@ -90,6 +90,13 @@ export default function App() {
 
   const selected = nearby.find((p) => p.id === selectedId) ?? null
 
+  /** Toque sobre un icono del mapa: abre sus acciones si estás a tiro */
+  const onPoiClick = (id: string): void => {
+    if (!pois[id]) return
+    if (nearby.some((p) => p.id === id)) setSelectedId(id)
+    else useInventoryStore.getState().setNotice(`Acércate a ese sitio (a menos de ${INTERACTION_RADIUS_M} m).`)
+  }
+
   if (!started) {
     return (
       <main className="relative h-full flex flex-col items-center justify-center gap-6 bg-yellow-400 p-6 text-center">
@@ -131,7 +138,7 @@ export default function App() {
   return (
     <div className="relative h-full w-full">
       <Suspense fallback={null}>
-        <GameMap follow={follow} />
+        <GameMap follow={follow} onPoiClick={onPoiClick} />
       </Suspense>
       <TopBar status={status} speed={speed} simulation={simulation} />
       <PoiStatus status={poiStatus} count={Object.keys(pois).length} onRetry={() => setPoiRetry((n) => n + 1)} />
@@ -146,7 +153,6 @@ export default function App() {
           }}
         />
       )}
-      {!selected && <NearbyPois pois={nearby} onSelect={(p) => setSelectedId(p.id)} />}
       {selected && <TradeModal poi={selected} blocked={driving} onClose={() => setSelectedId(null)} />}
       <Toast />
       <BottomButtons

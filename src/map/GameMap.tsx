@@ -8,7 +8,7 @@ import { usePlayerStore } from '../store/playerStore'
 import { INTERACTION_RADIUS_M } from '../services/geoService'
 import { useMapStore } from '../store/mapStore'
 import { useBaseStore } from '../store/baseStore'
-import { addPoiLayers, circlePolygon, setPois } from './poiLayer'
+import { addPoiLayers, circlePolygon, POI_ICON_LAYER, setPois } from './poiLayer'
 import { MAP_STYLE_URL, applyCartoonStyle } from './cartoonStyle'
 
 const RADAR_SOURCE = 'radar'
@@ -16,12 +16,16 @@ const DEFAULT_CENTER: [number, number] = [-3.7038, 40.4168] // Madrid, hasta ten
 
 interface Props {
   follow: boolean
+  /** Toque sobre el icono de un lugar */
+  onPoiClick: (id: string) => void
 }
 
-export default function GameMap({ follow }: Props) {
+export default function GameMap({ follow, onPoiClick }: Props) {
   const container = useRef<HTMLDivElement>(null)
   const followRef = useRef(follow)
   followRef.current = follow
+  const clickRef = useRef(onPoiClick)
+  clickRef.current = onPoiClick
 
   useEffect(() => {
     if (!container.current) return
@@ -81,6 +85,12 @@ export default function GameMap({ follow }: Props) {
         paint: { 'line-color': '#111111', 'line-width': 3, 'line-dasharray': [2, 1] },
       })
       addPoiLayers(map)
+      map.on('click', POI_ICON_LAYER, (e) => {
+        const id: unknown = e.features?.[0]?.properties?.id
+        if (typeof id === 'string') clickRef.current(id)
+      })
+      map.on('mouseenter', POI_ICON_LAYER, () => (map.getCanvas().style.cursor = 'pointer'))
+      map.on('mouseleave', POI_ICON_LAYER, () => (map.getCanvas().style.cursor = ''))
       setPois(map, Object.values(useMapStore.getState().pois))
       ready = true
       const p = usePlayerStore.getState().position

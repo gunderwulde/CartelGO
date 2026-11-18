@@ -52,11 +52,14 @@ export function addPoiLayers(map: MlMap): void {
   void registerPoiIcons(map)
 }
 
+/** Id de la capa de iconos (para escuchar los toques) */
+export const POI_ICON_LAYER = 'poi-icons'
+
 /** Vuelca los POIs al mapa. */
 export function setPois(map: MlMap, pois: Poi[]): void {
   const features: Feature<Point>[] = pois.map((p) => ({
     type: 'Feature',
-    properties: { kind: p.kind, name: p.name ?? '' },
+    properties: { id: p.id, kind: p.kind, name: p.name ?? '' },
     geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
   }))
   ;(map.getSource(POI_SOURCE) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features })
