@@ -1,7 +1,7 @@
 // Edge Function (Deno): rellena la caché compartida de POIs de una celda H3.
-// Lee las teselas vectoriales de OpenFreeMap (datos OSM). Solo se invoca cuando la celda falta o está
-// caducada; las lecturas van directas a la tabla.
-// OJO: la lógica de teselas es una copia de src/services/tilePois.ts. Mantener sincronizadas.
+// Lee las teselas vectoriales de OpenFreeMap (datos OSM). Solo se invoca cuando la celda falta;
+// las lecturas van directas a la tabla. Las celdas no caducan.
+// OJO: la lógica de teselas y de selección es una copia de src/services/tilePois.ts. Mantener sincronizadas.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { VectorTile } from 'npm:@mapbox/vector-tile@3'
 import { PbfReader } from 'npm:pbf@5'
@@ -27,6 +27,14 @@ interface Poi {
   lng: number
   cell: string
 }
+interface Candidate {
+  poi: Poi
+  rank: number
+}
+
+// Límite por tipo y celda (zonas muy densas saturan mapa y economía)
+const MAX_PER_KIND: Record<Kind, number> = { police: 6, pharmacy: 6, nightlife: 10, park: 6, cover: 4, warehouse: 4 }
+const MIN_SEPARATION_M = 60
 
 function classifyPoi(cls: string, subclass: string): Kind | null {
   if (cls === 'police') return 'police'
@@ -35,6 +43,37 @@ function classifyPoi(cls: string, subclass: string): Kind | null {
   if (cls === 'park') return 'park'
   if (cls === 'laundry' || cls === 'car_wash' || subclass === 'car_wash' || subclass === 'laundry') return 'cover'
   return null
+}
+
+const toRad = (d: number): number => (d * Math.PI) / 180
+function haversine(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const dLat = toRad(b.lat - a.lat)
+  const dLng = toRad(b.lng - a.lng)
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2
+  return 2 * 6_371_000 * Math.asin(Math.sqrt(h))
+}
+
+// Determinista: con nombre primero, luego más importante, luego por id; separación mínima por tipo
+function selectPois(candidates: Candidate[]): Poi[] {
+  const byKind = new Map<Kind, Candidate[]>()
+  for (const c of candidates) byKind.set(c.poi.kind, [...(byKind.get(c.poi.kind) ?? []), c])
+  const out: Poi[] = []
+  for (const [kind, list] of byKind) {
+    list.sort(
+      (a, b) =>
+        Number(b.poi.name !== null) - Number(a.poi.name !== null) ||
+        a.rank - b.rank ||
+        (a.poi.id < b.poi.id ? -1 : a.poi.id > b.poi.id ? 1 : 0),
+    )
+    const chosen: Poi[] = []
+    for (const { poi } of list) {
+      if (chosen.length >= MAX_PER_KIND[kind]) break
+      if (chosen.some((c) => haversine(c, poi) < MIN_SEPARATION_M)) continue
+      chosen.push(poi)
+    }
+    out.push(...chosen)
+  }
+  return out
 }
 
 const lngToTileX = (lng: number): number => Math.floor(((lng + 180) / 360) * 2 ** Z)
@@ -61,12 +100,13 @@ function tilePointToLatLng(x: number, y: number, px: number, py: number, extent:
   return { lat, lng }
 }
 
-function poisFromTile(tile: VectorTile, x: number, y: number, cell: string): Poi[] {
-  const out = new Map<string, Poi>()
-  const add = (kind: Kind, name: unknown, lat: number, lng: number, osmId: number | undefined, tag: string) => {
+function poisFromTile(tile: VectorTile, x: number, y: number, cell: string): Candidate[] {
+  const out = new Map<string, Candidate>()
+  const add = (kind: Kind, name: unknown, lat: number, lng: number, osmId: number | undefined, tag: string, rank: unknown) => {
     if (latLngToCell(lat, lng, H3_RES) !== cell) return
     const id = osmId !== undefined ? `vt/${osmId}` : `vt/${tag}/${lat.toFixed(4)},${lng.toFixed(4)}`
-    out.set(id, { id, kind, name: typeof name === 'string' && name ? name : null, lat, lng, cell })
+    const poi: Poi = { id, kind, name: typeof name === 'string' && name ? name : null, lat, lng, cell }
+    out.set(id, { poi, rank: typeof rank === 'number' ? rank : 99 })
   }
   const poi = tile.layers.poi
   if (poi) {
@@ -76,7 +116,7 @@ function poisFromTile(tile: VectorTile, x: number, y: number, cell: string): Poi
       const pt = kind ? f.loadGeometry()[0]?.[0] : undefined
       if (!kind || !pt) continue
       const { lat, lng } = tilePointToLatLng(x, y, pt.x, pt.y, f.extent)
-      add(kind, f.properties.name, lat, lng, f.id, kind)
+      add(kind, f.properties.name, lat, lng, f.id, kind, f.properties.rank)
     }
   }
   const landuse = tile.layers.landuse
@@ -95,7 +135,7 @@ function poisFromTile(tile: VectorTile, x: number, y: number, cell: string): Poi
         (Math.min(...ys) + Math.max(...ys)) / 2,
         f.extent,
       )
-      add('warehouse', f.properties.name, lat, lng, undefined, 'industrial')
+      add('warehouse', f.properties.name, lat, lng, undefined, 'industrial', 99)
     }
   }
   return [...out.values()]
@@ -115,9 +155,9 @@ async function fetchCellPois(cell: string): Promise<Poi[]> {
       return poisFromTile(new VectorTile(new PbfReader(new Uint8Array(await res.arrayBuffer()))), x, y, cell)
     }),
   )
-  const merged = new Map<string, Poi>()
-  for (const p of all.flat()) merged.set(p.id, p)
-  return [...merged.values()]
+  const merged = new Map<string, Candidate>()
+  for (const c of all.flat()) merged.set(c.poi.id, c)
+  return selectPois([...merged.values()])
 }
 
 // Una sola lectura de teselas por celda dentro de la misma instancia

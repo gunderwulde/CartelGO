@@ -2,6 +2,7 @@ import { VectorTile } from '@mapbox/vector-tile'
 import { PbfReader } from 'pbf'
 import { cellToBoundary, latLngToCell } from 'h3-js'
 import type { Poi, PoiKind } from '../types/poi'
+import { haversine } from './geoService'
 
 /**
  * POIs a partir de las teselas vectoriales de OpenFreeMap (esquema OpenMapTiles, datos de OSM).
@@ -59,15 +60,65 @@ export function tilePointToLatLng(z: number, x: number, y: number, px: number, p
 
 const round = (n: number): string => n.toFixed(4)
 
-/** Extrae los POIs de una tesela que caen dentro de alguna de las celdas pedidas. */
-export function poisFromTile(tile: VectorTile, z: number, x: number, y: number, cells: Set<string>): Poi[] {
-  const out = new Map<string, Poi>()
+/**
+ * Máximo de POIs por tipo y celda. Las zonas muy densas (centro de Madrid: ~150 bares en una celda)
+ * saturan el mapa, la lista y la economía; se queda una muestra repartida por la celda.
+ * La función de borde tiene una copia de estos valores: mantener sincronizados.
+ */
+export const MAX_PER_KIND: Record<PoiKind, number> = {
+  police: 6,
+  pharmacy: 6,
+  nightlife: 10,
+  park: 6,
+  cover: 4,
+  warehouse: 4,
+}
+/** Separación mínima entre dos POIs del mismo tipo (m): evita montones de iconos solapados */
+export const MIN_SEPARATION_M = 60
 
-  const add = (kind: PoiKind, name: unknown, lat: number, lng: number, osmId: number | undefined, tag: string): void => {
+export interface Candidate {
+  poi: Poi
+  /** Importancia en OpenMapTiles (menor = más importante) */
+  rank: number
+}
+
+/**
+ * Elige de forma determinista qué POIs se quedan: primero los que tienen nombre, luego los más importantes,
+ * y se descartan los que quedan a menos de MIN_SEPARATION_M de otro ya elegido del mismo tipo.
+ * El resultado no depende del orden de entrada, así servidor y móvil obtienen lo mismo.
+ */
+export function selectPois(candidates: Candidate[]): Poi[] {
+  const byKind = new Map<PoiKind, Candidate[]>()
+  for (const c of candidates) byKind.set(c.poi.kind, [...(byKind.get(c.poi.kind) ?? []), c])
+  const out: Poi[] = []
+  for (const [kind, list] of byKind) {
+    list.sort(
+      (a, b) =>
+        Number(b.poi.name !== null) - Number(a.poi.name !== null) ||
+        a.rank - b.rank ||
+        (a.poi.id < b.poi.id ? -1 : a.poi.id > b.poi.id ? 1 : 0),
+    )
+    const chosen: Poi[] = []
+    for (const { poi } of list) {
+      if (chosen.length >= MAX_PER_KIND[kind]) break
+      if (chosen.some((c) => haversine(c, poi) < MIN_SEPARATION_M)) continue
+      chosen.push(poi)
+    }
+    out.push(...chosen)
+  }
+  return out
+}
+
+/** Extrae los candidatos de una tesela que caen dentro de alguna de las celdas pedidas. */
+export function poisFromTile(tile: VectorTile, z: number, x: number, y: number, cells: Set<string>): Candidate[] {
+  const out = new Map<string, Candidate>()
+
+  const add = (kind: PoiKind, name: unknown, lat: number, lng: number, osmId: number | undefined, tag: string, rank: unknown): void => {
     const cell = latLngToCell(lat, lng, CELL_RES)
     if (!cells.has(cell)) return
     const id = osmId !== undefined ? `vt/${osmId}` : `vt/${tag}/${round(lat)},${round(lng)}`
-    out.set(id, { id, kind, name: typeof name === 'string' && name ? name : null, lat, lng, cell })
+    const poi: Poi = { id, kind, name: typeof name === 'string' && name ? name : null, lat, lng, cell }
+    out.set(id, { poi, rank: typeof rank === 'number' ? rank : 99 })
   }
 
   const poi = tile.layers.poi
@@ -79,7 +130,7 @@ export function poisFromTile(tile: VectorTile, z: number, x: number, y: number, 
       const pt = f.loadGeometry()[0]?.[0]
       if (!pt) continue
       const { lat, lng } = tilePointToLatLng(z, x, y, pt.x, pt.y, f.extent)
-      add(kind, f.properties.name, lat, lng, f.id, kind)
+      add(kind, f.properties.name, lat, lng, f.id, kind, f.properties.rank)
     }
   }
 
@@ -96,7 +147,7 @@ export function poisFromTile(tile: VectorTile, z: number, x: number, y: number, 
       const cx = (Math.min(...xs) + Math.max(...xs)) / 2
       const cy = (Math.min(...ys) + Math.max(...ys)) / 2
       const { lat, lng } = tilePointToLatLng(z, x, y, cx, cy, f.extent)
-      add('warehouse', f.properties.name, lat, lng, undefined, 'industrial')
+      add('warehouse', f.properties.name, lat, lng, undefined, 'industrial', 99)
     }
   }
   return [...out.values()]
@@ -135,7 +186,7 @@ export async function fetchCellPoisFromTiles(cell: string): Promise<Poi[]> {
       return poisFromTile(tile, TILE_ZOOM, x, y, cells)
     }),
   )
-  const merged = new Map<string, Poi>()
-  for (const p of all.flat()) merged.set(p.id, p)
-  return [...merged.values()]
+  const merged = new Map<string, Candidate>()
+  for (const c of all.flat()) merged.set(c.poi.id, c)
+  return selectPois([...merged.values()])
 }
