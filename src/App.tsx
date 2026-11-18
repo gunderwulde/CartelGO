@@ -6,6 +6,7 @@ import { useMapStore } from './store/mapStore'
 import { useInventoryStore } from './store/inventoryStore'
 import { useGps } from './services/useGps'
 import { usePois } from './services/usePois'
+import { clearPoiCache } from './services/osmService'
 import { useIdle } from './services/useIdle'
 import { useBaseStore } from './store/baseStore'
 import HqPanel from './components/HqPanel'
@@ -60,6 +61,14 @@ export default function App() {
 
   useGps(started, retry)
   usePois(started, poiRetry)
+
+  const clearCache = async (): Promise<void> => {
+    if (!window.confirm('¿Borrar los lugares guardados en este dispositivo? Se volverán a descargar. Tu partida no se toca.')) return
+    await clearPoiCache()
+    useMapStore.getState().clearPois()
+    setSelectedId(null)
+    setPoiRetry((n) => n + 1)
+  }
   useHeat(started)
   useIdle(started)
   useCloudSync(started)
@@ -145,6 +154,7 @@ export default function App() {
         onToggleFollow={() => setFollow((f) => !f)}
         onHq={() => setHqOpen(true)}
         onAccount={() => setAccountOpen((o) => !o)}
+        onClearPois={() => void clearCache()}
       />
       {hqOpen && <HqPanel onClose={() => setHqOpen(false)} />}
       {accountOpen && <AccountPanel onClose={() => setAccountOpen(false)} />}

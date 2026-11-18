@@ -1,4 +1,4 @@
-import { Cloud, CloudAlert, CloudCheck, CloudOff, Crosshair, House, Navigation, TriangleAlert, Volume2, VolumeX } from 'lucide-react'
+import { Cloud, CloudAlert, CloudCheck, CloudOff, Crosshair, House, Navigation, RefreshCw, TriangleAlert, Volume2, VolumeX } from 'lucide-react'
 import { useAccountStore } from '../store/accountStore'
 import { backendEnabled } from '../services/supabaseClient'
 import type { GpsStatus } from '../types'
@@ -65,9 +65,10 @@ interface BottomProps {
   onToggleFollow: () => void
   onHq: () => void
   onAccount: () => void
+  onClearPois: () => void
 }
 
-export function BottomButtons({ follow, onToggleFollow, onHq, onAccount }: BottomProps) {
+export function BottomButtons({ follow, onToggleFollow, onHq, onAccount, onClearPois }: BottomProps) {
   const muted = useMuted()
   const auth = useAccountStore((s) => s.auth)
   const sync = useAccountStore((s) => s.sync)
@@ -83,6 +84,13 @@ export function BottomButtons({ follow, onToggleFollow, onHq, onAccount }: Botto
           <CloudIcon />
         </button>
       )}
+      <button
+        className="cartoon-btn w-14 h-14 flex items-center justify-center bg-white!"
+        onClick={onClearPois}
+        aria-label="Borrar la caché de lugares"
+      >
+        <RefreshCw />
+      </button>
       <button
         className="cartoon-btn w-14 h-14 flex items-center justify-center bg-white!"
         onClick={() => setMuted(!muted)}

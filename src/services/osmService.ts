@@ -17,19 +17,20 @@ const CACHE_VERSION = 'cell4'
 const cachePrefix = `cartelgo:${CACHE_VERSION}:`
 const cacheKey = (cell: string): string => `${cachePrefix}${H3_RES}:${cell}`
 
-let purged: Promise<void> | null = null
-/** Borra las celdas guardadas por versiones anteriores del algoritmo (una vez por sesión). El resto de claves no se toca. */
-function purgeStaleCells(): Promise<void> {
-  purged ??= (async () => {
-    try {
-      for (const k of await keys()) {
-        if (typeof k === 'string' && /^cartelgo:cell\d*:/.test(k) && !k.startsWith(cachePrefix)) await del(k)
+/** Borra de este dispositivo todas las celdas de POIs guardadas (de cualquier versión). La partida no se toca. */
+export async function clearPoiCache(): Promise<number> {
+  let n = 0
+  try {
+    for (const k of await keys()) {
+      if (typeof k === 'string' && /^cartelgo:celld*:/.test(k)) {
+        await del(k)
+        n++
       }
-    } catch {
-      /* IndexedDB no disponible */
     }
-  })()
-  return purged
+  } catch {
+    /* IndexedDB no disponible */
+  }
+  return n
 }
 
 async function readCache(cell: string): Promise<CachedCell | undefined> {
@@ -84,7 +85,6 @@ export async function loadPoisAround(
   pos: LatLng,
   onPois: (pois: Poi[]) => void,
 ): Promise<LoadResult> {
-  await purgeStaleCells()
   const cells = cellsAround(pos)
   const [center] = cells
   const toFetch: string[] = []

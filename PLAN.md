@@ -62,6 +62,7 @@ Desplegar desde el día 1 evita sorpresas con rutas, HTTPS y service worker.
 - [x] Caché compartida en Supabase (tabla `poi_cells` + función `poi-cell`), con Overpass directo como respaldo. Código listo; falta crear el proyecto y desplegar: ver `supabase/README.md`.
 - [x] Cambio de fuente (v3): Overpass seguía saturado (502/406/timeouts), así que los POIs salen de las teselas vectoriales de OpenFreeMap (`tilePois.ts`): ~200 ms por celda, sin API que se caiga. Overpass queda descartado. Pierde autolavados y parte de los nombres de OSM completo. Función `poi-cell` desplegada (v3) y tabla `poi_cells` creada en Supabase.
 - [x] Las celdas no caducan (ni en Supabase ni en IndexedDB): se piden una vez. Si cambian las reglas de clasificación, subir la versión de `cacheKey` y vaciar `poi_cells`.
+- [x] Botón "Borrar la caché de lugares" en la pantalla principal (sustituye a la purga automática de versiones).
 - [x] Límite por tipo y celda con reparto por distancia y tipo (`selectPois`: rondas entre tipos, cada POI el más alejado de los ya elegidos); función v6, caché cliente `cell4`. Tras cambiar el algoritmo hay que vaciar `poi_cells`.
 - [x] Iconos por tipo de lugar (lucide: Warehouse, Pill, Trees, Martini, Siren, WashingMachine) como insignias cartoon en el mapa (`poiIcons.ts`) y en la lista/modal (`PoiBadge`).
 - [x] Pintar marcadores (círculos de color) por tipo y radio de 50 m del radar; círculo de influencia de comisarías.

@@ -8,6 +8,7 @@ interface MapState {
   status: PoiLoadStatus
   addPois: (pois: Poi[]) => void
   setStatus: (s: PoiLoadStatus) => void
+  clearPois: () => void
 }
 
 export const useMapStore = create<MapState>((set) => ({
@@ -20,4 +21,5 @@ export const useMapStore = create<MapState>((set) => ({
       return { pois: next }
     }),
   setStatus: (status) => set({ status }),
+  clearPois: () => set({ pois: {}, status: 'idle' }),
 }))
