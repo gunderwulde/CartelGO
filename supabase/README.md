@@ -32,14 +32,18 @@ La clave `anon` es pública por diseño; la protege RLS (solo lectura). Nunca po
 
 El juego es local; la nube es copia de seguridad y puente entre móviles. Inicio de sesión por **código de email** (sin contraseñas).
 
-1. **SQL Editor** → ejecuta  (tabla  con RLS: cada usuario solo ve la suya).
+1. **SQL Editor** → ejecuta `migrations/0002_saves.sql` (tabla `saves` con RLS: cada usuario solo ve la suya).
 2. **Authentication → Emails → Templates → Magic Link**: el correo debe incluir el código. Añade, por ejemplo:
-   \   (Sin  solo llega un enlace, y la app espera un código.)
+   ```html
+   <h2>Tu código de Cartel GO</h2>
+   <p>Escríbelo en la app: <b>{{ .Token }}</b></p>
+   ```
+   Sin `{{ .Token }}` solo llega un enlace, y la app espera un código.
 3. **Authentication → Providers → Email**: activado, y la longitud del código de 6 a 8 dígitos (la app acepta de 6 a 10).
-4. **Authentication → URL Configuration**: *Site URL* = .
+4. **Authentication → URL Configuration**: *Site URL* = `https://gunderwulde.github.io/CartelGO/`.
 5. El correo integrado de Supabase está muy limitado (unos pocos emails por hora). Vale para probar; para lanzar configura un SMTP propio en *Authentication → Emails → SMTP Settings*.
 
 ### Cómo sincroniza
 - Sube cada ~3 min si hay cambios y al salir de la app; no sube nada si no ha cambiado.
 - Cada dispositivo recuerda la revisión que sincronizó. Si la nube avanzó y lo local no, descarga; si avanzaron las dos, **pregunta** qué partida conservar. Nunca pisa en silencio.
-- **Privacidad:** no se sube la posición exacta del HQ, solo  (H3 res. 7). Al restaurar en otro móvil hay que volver a colocarlo.
+- **Privacidad:** no se sube la posición exacta del HQ, solo `hq_cell` (H3 res. 7). Al restaurar en otro móvil hay que volver a colocarlo.
