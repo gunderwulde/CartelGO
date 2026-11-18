@@ -62,24 +62,34 @@ function buildQuery(cell: string): string {
 }
 
 async function overpass(query: string): Promise<Element[]> {
-  let lastError = 'sin servidores'
-  for (const endpoint of ENDPOINTS) {
+  // En paralelo con salida escalonada: gana el primero que responde bien
+  const attempt = async (endpoint: string, i: number): Promise<Element[]> => {
+    await new Promise((r) => setTimeout(r, i * 2_000))
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': USER_AGENT,
+          Accept: 'application/json',
+        },
         body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(40_000),
       })
-      if (!res.ok) throw new Error(`${endpoint} ${res.status}`)
+      if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 80).replace(/\s+/g, ' ')}`)
       const json = (await res.json()) as { elements?: Element[]; remark?: string }
       if (json.remark && !json.elements?.length) throw new Error(json.remark)
       return json.elements ?? []
     } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e)
+      throw new Error(`${new URL(endpoint).host}: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
-  throw new Error(lastError)
+  try {
+    return await Promise.any(ENDPOINTS.map(attempt))
+  } catch (e) {
+    const errs = (e as AggregateError).errors?.map((x: Error) => x.message) ?? [String(e)]
+    throw new Error(errs.join(' | '))
+  }
 }
 
 function toPois(elements: Element[], cell: string) {
