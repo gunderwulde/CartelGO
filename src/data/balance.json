@@ -2,7 +2,7 @@
   "_ayuda": "Todos los valores de balance del juego. Tiempos en segundos o minutos (lo indica el nombre), dinero en $. Los índices de las listas son nivel-1 (el primer valor es el nivel 1).",
   "inicio": {
     "dineroSucio": 300,
-    "dineroLimpio": 400
+    "dineroLimpio": 500
   },
   "productos": {
     "_ayuda": "Precio base en Dinero Sucio por unidad y reputación que da cada unidad vendida por un camello.",

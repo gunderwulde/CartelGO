@@ -93,7 +93,7 @@ El jugador no carga mercancía encima (no hay mochila: se dedica a los negocios,
 
 Para ver el efecto de un cambio: `npx vitest run balanceSim --reporter=verbose --silent=false`. Es una simulación con los motores reales de un jugador atento que sigue siempre el mismo plan de compras e imprime la línea de tiempo (y falla si el ritmo se sale de lo razonable).
 
-Cifras de partida: **$400 limpios** (transportista + camello + algo de margen) y **$300 sucios** (el primer pedido y el primer negocio tapadera, que se paga con sucio).
+Cifras de partida: **$500 limpios** (transportista $200 + primer pedido en farmacia + camello $150) y **₡300 sucios** (el primer negocio tapadera, que se paga con sucio). Así el tutorial se puede completar sin quedarse sin dinero.
 
 **Costes en Dinero Limpio**
 

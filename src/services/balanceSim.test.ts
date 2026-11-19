@@ -371,3 +371,18 @@ describe("simulación de balance", () => {
     expect(r.final.cleanCash + r.final.dirtyCash).toBeGreaterThan(0);
   });
 });
+
+describe("tutorial", () => {
+  it("el dinero inicial alcanza para todos los pasos (con farmacia, que cobra en limpio)", () => {
+    // transportista + primer pedido de 20 uds de fertilizante en farmacia + camello, todo en limpio
+    const limpio =
+      CFG.suministro.costeContratarTransportista +
+      20 * CFG.productos.fertilizante.precio +
+      CFG.camellos.costeContratar;
+    expect(CFG.inicio.dineroLimpio).toBeGreaterThanOrEqual(limpio);
+    // el primer negocio tapadera se paga con sucio
+    expect(CFG.inicio.dineroSucio).toBeGreaterThanOrEqual(
+      CFG.negocios.costes[0],
+    );
+  });
+});
