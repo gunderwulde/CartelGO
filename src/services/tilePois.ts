@@ -41,6 +41,7 @@ const COVER_CLASSES = new Set([
 export function classifyPoi(cls: string, subclass: string): PoiKind | null {
   if (cls === "police") return "police";
   if (cls === "pharmacy") return "pharmacy";
+  if (cls === "supermarket" || subclass === "supermarket") return "supermarket";
   if (
     cls === "bar" ||
     cls === "nightclub" ||
@@ -109,6 +110,7 @@ const round = (n: number): string => n.toFixed(4);
 export const MAX_PER_KIND: Record<PoiKind, number> = {
   police: 6,
   pharmacy: 6,
+  supermarket: 6,
   nightlife: 10,
   park: 6,
   cover: 12,

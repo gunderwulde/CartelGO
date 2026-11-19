@@ -2,3 +2,6 @@ node_modules
 dist
 .env*
 *.local
+
+# PDF generado a partir del GDD.md
+GDD.pdf

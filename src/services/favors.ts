@@ -10,6 +10,8 @@ export const FAVORS_START = CFG.favores.iniciales;
 export const FAVOR_MS = min(CFG.favores.minutosPorFavor);
 /** Despistar a la policía (Heat a 0) */
 export const CALM_HEAT_COST = CFG.favores.costeCalmarPolicia;
+/** Soborno a la policía: Dinero Sucio que cuesta poner el Heat a 0 sin gastar favores */
+export const BRIBE_COST = CFG.calor.sobornoSucio;
 
 /** Favores que cuesta saltar `remainingMs` de espera (mínimo 1) */
 export const favorCost = (remainingMs: number): number =>

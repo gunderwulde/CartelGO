@@ -3,6 +3,7 @@ import { money } from "../services/money";
 import { displayName } from "../data/poiNames";
 import {
   CARRIER_LEVELS,
+  IN_PERSON_DISCOUNT,
   CARRIER_UPGRADE_COSTS,
   REMOTE_UPGRADE_FACTOR,
   SUPPLIER_LEVELS,
@@ -17,6 +18,7 @@ import { favorCost } from "../services/favors";
 import { handleResult } from "../services/feedback";
 import { offersFor, unitPrice } from "../services/tradeEngine";
 import {
+  inPersonLeft,
   rankByNeed,
   supplierCash,
   supplierUpgradeCost,
@@ -54,6 +56,7 @@ export function SupplierCard({
   const labLevel = useBaseStore((s) => s.labLevel);
   const reputation = useBaseStore((s) => s.reputation);
   const skipTrip = useBaseStore((s) => s.skipTrip);
+  const inPersonCount = useBaseStore((s) => s.inPerson);
   const upgradeSupplier = useBaseStore((s) => s.upgradeSupplier);
   const { poi, level, order } = supplier;
   const placeOrder = (item: ItemId, qty: number): void => {
@@ -64,6 +67,16 @@ export function SupplierCard({
   const info = SUPPLIER_LEVELS[level - 1];
   const near = !!position && haversine(position, poi) <= INTERACTION_RADIUS_M;
   const upCost = supplierUpgradeCost(level, !near);
+  // Pedir en persona a un proveedor legal sale más barato (con tope diario)
+  const discounted =
+    near &&
+    supplierCash(poi.kind) === "clean" &&
+    inPersonLeft(inPersonCount, now) > 0;
+  const priceOf = (item: ItemId): number =>
+    Math.round(
+      unitPrice(poi.kind, item, new Date(now)) *
+        (discounted ? 1 - IN_PERSON_DISCOUNT : 1),
+    );
   const tripCarrier = carriers.find((c) => c.trip?.supplierId === poi.id);
   const trip = tripCarrier?.trip;
 
@@ -132,11 +145,9 @@ export function SupplierCard({
                 {ITEMS[item].label}
               </p>
               <p className="text-xs font-bold opacity-70">
-                {money(
-                  unitPrice(poi.kind, item, new Date(now)),
-                  supplierCash(poi.kind),
-                )}{" "}
-                c/u
+                {money(priceOf(item), supplierCash(poi.kind))} c/u
+                {discounted &&
+                  ` · -${Math.round(IN_PERSON_DISCOUNT * 100)} % en persona (${inPersonLeft(inPersonCount, now)} hoy)`}
               </p>
             </div>
             <button

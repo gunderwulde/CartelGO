@@ -1,6 +1,7 @@
 import {
   Martini,
   Pill,
+  ShoppingCart,
   Siren,
   Trees,
   Warehouse,
@@ -31,6 +32,12 @@ export const POI_KINDS: Record<PoiKind, PoiKindInfo> = {
     role: "Ingredientes refinados",
     color: "#22c55e",
     Icon: Pill,
+  },
+  supermarket: {
+    label: "Suministro doméstico",
+    role: "Fertilizantes y baterías",
+    color: "#14b8a6",
+    Icon: ShoppingCart,
   },
   park: {
     label: "Punto de menudeo",

@@ -57,6 +57,11 @@ export const DEALER_REVEAL_SALES = D.ventasParaConocerlo;
 export const DEALER_BONUS_COST = D.primaCoste;
 export const DEALER_BONUS_HONESTY = D.primaFiabilidad;
 
+/** Venta a mano (sin camello): cobras el precio completo, a cambio de Heat y de estar allí */
+export const HAND_SALE_CUT = CFG.ventaManual.parteQueCobras;
+export const HAND_SALE_HEAT = CFG.ventaManual.calorPorUnidad;
+export const HAND_SALE_BATCH = CFG.ventaManual.unidadesPorToque;
+
 export const BUSINESS_BASE_COST = N.costes[0];
 /** Coste (en Dinero Sucio) del siguiente negocio según los que ya tienes. Pasada la lista, cada uno cuesta N.multiplicadorMasAlla veces el anterior. */
 export const businessCost = (owned: number): number => {
@@ -82,6 +87,12 @@ export const DEALER_CUT = D.parteQueCobran;
 /** Cada negocio blanquea este Dinero Sucio por tick */
 export const LAUNDER_TICK_MS = sec(N.segundosPorTick);
 export const LAUNDER_DIRTY_PER_TICK = N.sucioPorTick;
+/** Limpio que factura por sí mismo cada negocio tapadera, por minuto */
+export const BUSINESS_BILL_PER_MIN = N.facturaLimpioPorMinuto;
+/** Un negocio dentro del radio de una comisaría blanquea esta vez más */
+export const POLICE_ZONE_BONUS = N.bonusZonaPolicial;
+/** Horas iniciales de partida en que el blanqueo no cobra comisión */
+export const LAUNDER_FREE_MS = N.blanqueoSinComisionHoras * 60 * 60 * 1000;
 /** Cuánto sale limpio de cada Dinero Sucio blanqueado */
 export const LAUNDER_YIELD = N.rendimientoLimpio;
 /** El progreso offline de camellos y blanqueo se limita a estas horas */

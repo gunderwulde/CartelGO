@@ -47,6 +47,21 @@ export const CARRIER_UPGRADE_COSTS: number[] =
 /** Transportistas máximos por nivel de HQ */
 export const CARRIER_SLOTS: number[] = CFG.edificios.huecosTransportistas;
 
+/** Arranque suave: los cuatro primeros pedidos de la partida van más rápido (GDD §4 bis) */
+export const RAMP_FIRST_PREP_MS = sec(
+  CFG.suministro.arranque.primerPedidoPreparaSegundos,
+);
+export const RAMP_FIRST_TRIP_MS = sec(
+  CFG.suministro.arranque.primerPedidoViajeSegundos,
+);
+/** Fracción del tiempo normal del 2.º, 3.º y 4.º pedido */
+export const RAMP_FACTORS: number[] =
+  CFG.suministro.arranque.factoresSiguientes;
+
+/** Pedir en persona (junto a una farmacia o supermercado) sale más barato, con tope diario */
+export const IN_PERSON_DISCOUNT = CFG.suministro.enPersona.descuento;
+export const IN_PERSON_ORDERS_PER_DAY = CFG.suministro.enPersona.pedidosPorDia;
+
 /** Ensuciar dinero: de cada Dinero Limpio que cambias, el cambista te da esta parte en Dinero Sucio (se queda con el resto) */
 export const DIRTY_EXCHANGE_YIELD = CFG.suministro.rendimientoEnsuciar;
 /** Importes (limpios) que ofrece el HQ para ensuciar */

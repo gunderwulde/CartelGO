@@ -1,6 +1,9 @@
 import { money } from "../services/money";
 import { displayName } from "../data/poiNames";
 import { Users } from "lucide-react";
+import { PRODUCTS, ITEMS } from "../data/items";
+import { HAND_SALE_BATCH } from "../data/buildings";
+import { unitPrice } from "../services/tradeEngine";
 import { handleResult } from "../services/feedback";
 import type { Poi } from "../types/poi";
 import { POI_KINDS } from "../data/poiKinds";
@@ -30,10 +33,14 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
   const supplier = useBaseStore((s) => s.suppliers[poi.id]);
   const dealers = useBaseStore((s) => s.dealers);
   const hqLevel = useBaseStore((s) => s.hqLevel);
+  const storage = useBaseStore((s) => s.storage);
   const dealer = dealers.find((d) => d.poiId === poi.id);
 
   const info = POI_KINDS[poi.kind];
-  const isSupplyPoint = poi.kind === "warehouse" || poi.kind === "pharmacy";
+  const isSupplyPoint =
+    poi.kind === "warehouse" ||
+    poi.kind === "pharmacy" ||
+    poi.kind === "supermarket";
   const isDealerSpot = poi.kind === "park" || poi.kind === "nightlife";
 
   const header = (
@@ -111,8 +118,57 @@ export default function TradeModal({ poi, blocked, onClose }: Props) {
     </div>
   );
 
+  const spot = {
+    id: poi.id,
+    kind: poi.kind,
+    name: poi.name,
+    nameId: poi.nameId,
+    lat: poi.lat,
+    lng: poi.lng,
+  };
+  const sell = (item: (typeof PRODUCTS)[number], qty: number) => {
+    if (blocked) return;
+    handleResult(useBaseStore.getState().sellByHand(spot, item, qty), "sell");
+  };
+  const handSale = (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-black">Vender a mano</p>
+      {PRODUCTS.map((item) => {
+        const stock = storage[item] ?? 0;
+        return (
+          <div key={item} className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="font-bold leading-tight truncate">
+                {ITEMS[item].label} ({stock})
+              </p>
+              <p className="text-xs font-bold opacity-70">
+                {money(unitPrice(poi.kind, item, new Date()), "dirty")} c/u ·
+                sube el Heat
+              </p>
+            </div>
+            <button
+              className="cartoon-btn px-3 py-1.5 text-sm disabled:opacity-40"
+              disabled={blocked || stock < 1}
+              onClick={() => sell(item, HAND_SALE_BATCH)}
+            >
+              Vender {HAND_SALE_BATCH}
+            </button>
+            <button
+              className="cartoon-btn px-3 py-1.5 text-sm bg-white! disabled:opacity-40"
+              disabled={blocked || stock < 1}
+              onClick={() => sell(item, 9999)}
+            >
+              Todo
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   const personal = (
     <div className="flex flex-col gap-3">
+      {isDealerSpot && handSale}
       {isDealerSpot &&
         (dealer ? (
           <DealerCard dealer={dealer} log bare />

@@ -30,6 +30,7 @@ export const VENUES = [
   "bar",
   "pub",
   "nightclub",
+  "supermarket",
 ];
 
 /** Tipo de local que usamos como tema: la clase del mapa o, si no la conocemos, la subclase. */

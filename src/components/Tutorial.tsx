@@ -21,8 +21,8 @@ interface Step {
 const STEPS: Step[] = [
   {
     title: "Haz contacto con un proveedor",
-    hint: "Acércate a un almacén o farmacia, toca su icono y pulsa «Establecer contacto».",
-    go: { type: "poi", kinds: ["warehouse", "pharmacy"] },
+    hint: "Acércate a un almacén, farmacia o supermercado, toca su icono y pulsa «Establecer contacto».",
+    go: { type: "poi", kinds: ["warehouse", "pharmacy", "supermarket"] },
   },
   {
     title: "Contrata un transportista",
@@ -40,8 +40,8 @@ const STEPS: Step[] = [
     go: { type: "hq", tab: "lab" },
   },
   {
-    title: "Contrata un camello",
-    hint: "Ve a un parque o bar, toca su icono y pulsa «Contratar camello».",
+    title: "Vende tu mercancía",
+    hint: "Ve a un parque o bar, toca su icono y vende a mano lo que has cocinado. Más adelante puedes contratar un camello para que venda por ti.",
     go: { type: "poi", kinds: ["park", "nightlife"] },
   },
   {
@@ -53,7 +53,7 @@ const STEPS: Step[] = [
 if (STEPS.length !== TUTORIAL_STEPS)
   throw new Error("TUTORIAL_STEPS no coincide con los pasos");
 
-/** Una cifra por hito: HQ colocado, contacto, transportista, pedido, producción, camello, negocio */
+/** Una cifra por hito: HQ colocado, contacto, transportista, pedido, producción, primera venta (a mano o camello), negocio */
 function useFlags(): string {
   return useBaseStore((s) =>
     [
@@ -67,7 +67,7 @@ function useFlags(): string {
       s.job !== null ||
         PRODUCTS.some((p) => (s.storage[p] ?? 0) > 0) ||
         s.dealers.some((d) => (d.sold ?? 0) > 0),
-      s.dealers.length > 0,
+      s.dealers.length > 0 || s.reputation > 0,
       s.businesses.length > 0,
     ]
       .map(Number)

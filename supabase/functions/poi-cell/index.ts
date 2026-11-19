@@ -18,7 +18,7 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-type Kind = 'warehouse' | 'pharmacy' | 'park' | 'nightlife' | 'police' | 'cover'
+type Kind = 'warehouse' | 'pharmacy' | 'supermarket' | 'park' | 'nightlife' | 'police' | 'cover'
 
 // ---- Copia de src/data/poiNameCode.ts (código numérico de los nombres). Mantener sincronizadas. ----
 /**
@@ -53,6 +53,7 @@ const VENUES = [
   "bar",
   "pub",
   "nightclub",
+  "supermarket",
 ];
 
 /** Tipo de local que usamos como tema: la clase del mapa o, si no la conocemos, la subclase. */
@@ -93,7 +94,7 @@ interface Candidate {
 }
 
 // Límite por tipo y celda (zonas muy densas saturan mapa y economía)
-const MAX_PER_KIND: Record<Kind, number> = { police: 6, pharmacy: 6, nightlife: 10, park: 6, cover: 12, warehouse: 4 }
+const MAX_PER_KIND: Record<Kind, number> = { police: 6, pharmacy: 6, supermarket: 6, nightlife: 10, park: 6, cover: 12, warehouse: 4 }
 const MIN_SEPARATION_M = 60
 
 const COVER_CLASSES = new Set([
@@ -104,6 +105,7 @@ const COVER_CLASSES = new Set([
 function classifyPoi(cls: string, subclass: string): Kind | null {
   if (cls === 'police') return 'police'
   if (cls === 'pharmacy') return 'pharmacy'
+  if (cls === 'supermarket' || subclass === 'supermarket') return 'supermarket'
   if (cls === 'bar' || cls === 'nightclub' || subclass === 'pub' || subclass === 'nightclub') return 'nightlife'
   if (cls === 'park') return 'park'
   if (COVER_CLASSES.has(cls) || COVER_CLASSES.has(subclass)) return 'cover'

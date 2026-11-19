@@ -13,6 +13,7 @@ import {
   DEALER_SLOTS,
   REFUND_SHARE,
   HQ_MOVE_COOLDOWN_MS,
+  LAUNDER_FREE_MS,
   MAX_LEVEL,
   RECIPES,
   STORAGE_CAPACITY,
@@ -41,17 +42,30 @@ import {
   type IdleState,
   type Job,
 } from "../services/idleEngine";
-import { carried, type Inventory } from "../services/tradeEngine";
+import { carried, planHandSale, type Inventory } from "../services/tradeEngine";
+import { claimSalary } from "../services/salary";
+import { useMapStore } from "./mapStore";
+import { useTutorialStore } from "./tutorialStore";
+import { POLICE_INFLUENCE_RADIUS_M } from "../data/poiKinds";
+import { IN_PERSON_DISCOUNT } from "../data/supply";
 import {
   AD_FAVOR_REWARD,
   AD_RESCUE_REWARD,
   canOfferAd,
   canWatchFavorAd,
 } from "../services/adRescue";
-import { CALM_HEAT_COST, FAVORS_START, favorCost } from "../services/favors";
+import {
+  BRIBE_COST,
+  CALM_HEAT_COST,
+  FAVORS_START,
+  favorCost,
+} from "../services/favors";
 import {
   advanceSupply,
+  dayKey,
   dirtyFromClean,
+  inPersonLeft,
+  type InPersonCount,
   newCarrier,
   supplierCash,
   pending,
@@ -116,10 +130,20 @@ interface BaseState {
   adFavorAt: number;
   /** Favores: moneda para saltar esperas */
   favors: number;
+  /** Pedidos hechos en la partida (los cuatro primeros van más rápido) */
+  ordersPlaced: number;
+  /** Pedidos con descuento «en persona» de hoy */
+  inPerson?: InPersonCount;
+  /** Último cobro del empleo de fachada */
+  salaryAt: number;
+  /** Hasta cuándo el blanqueo no cobra comisión (primeras horas de partida) */
+  launderFreeUntil?: number;
 
   placeHq: (pos: LatLng) => ActionResult;
   startJob: (recipe: RecipeId, batches: number) => ActionResult;
   hireDealer: (poi: VisitedPoi) => ActionResult;
+  /** Vende a mano en un parque o bar con producto del almacén del HQ (hay que estar allí) */
+  sellByHand: (poi: VisitedPoi, item: ItemId, qty: number) => ActionResult;
   fireDealer: (id: string) => ActionResult;
   bonusDealer: (id: string) => ActionResult;
   buyBusiness: (poi: VisitedPoi) => ActionResult;
@@ -137,6 +161,10 @@ interface BaseState {
   skipTrip: (carrierId: string) => ActionResult;
   skipBatch: () => ActionResult;
   calmHeat: () => ActionResult;
+  /** Soborna a la policía con Dinero Sucio: pone el Heat a 0 */
+  bribePolice: () => ActionResult;
+  /** Cobra el empleo de fachada */
+  claimSalary: () => ActionResult;
   upgradeSupplier: (poiId: string) => ActionResult;
   hireCarrier: () => ActionResult;
   upgradeCarrier: (id: string) => ActionResult;
@@ -206,6 +234,10 @@ export const useBaseStore = create<BaseState>()(
       adAt: 0,
       adFavorAt: 0,
       favors: FAVORS_START,
+      ordersPlaced: 0,
+      inPerson: undefined,
+      salaryAt: Date.now(),
+      launderFreeUntil: undefined,
 
       placeHq: (pos) => {
         const { hq } = get();
@@ -216,7 +248,13 @@ export const useBaseStore = create<BaseState>()(
           );
           return fail(`Podrás mover el HQ gratis en ${days} día(s).`);
         }
-        set({ hq: { lat: pos.lat, lng: pos.lng, movedAt: now } });
+        set({
+          hq: { lat: pos.lat, lng: pos.lng, movedAt: now },
+          // La partida empieza al colocar el HQ por primera vez
+          ...(hq
+            ? {}
+            : { launderFreeUntil: now + LAUNDER_FREE_MS, salaryAt: now }),
+        });
         return done("Cuartel General colocado.");
       },
 
@@ -273,6 +311,26 @@ export const useBaseStore = create<BaseState>()(
         });
         return done("Camello contratado.");
       },
+      sellByHand: (poi, item, qty) => {
+        const s = get();
+        const here = usePlayerStore.getState().position;
+        if (!here || haversine(here, poi) > INTERACTION_RADIUS_M)
+          return fail("Tienes que estar allí en persona para vender.");
+        const plan = planHandSale(s.storage, item, qty, poi.kind, new Date());
+        if (!plan.ok) return fail(plan.reason);
+        const inv = useInventoryStore.getState();
+        set({
+          storage: { ...s.storage, [item]: (s.storage[item] ?? 0) - plan.qty },
+          reputation: s.reputation + plan.rep,
+        });
+        useInventoryStore.setState({
+          dirtyCash: inv.dirtyCash + plan.cash,
+          heat: Math.min(HEAT_MAX, inv.heat + plan.heat),
+        });
+        return done(
+          `Vendidas ${plan.qty} × ${ITEMS[item].label} por ${money(plan.cash, "dirty")}.`,
+        );
+      },
       fireDealer: (id) => {
         const s = get();
         if (!s.dealers.some((d) => d.id === id))
@@ -322,14 +380,24 @@ export const useBaseStore = create<BaseState>()(
         if (inv.dirtyCash < cost)
           return fail(`Cuesta ${money(cost, "dirty")}.`);
         useInventoryStore.setState({ dirtyCash: inv.dirtyCash - cost });
+        // Dentro del radio de una comisaría blanquea más (y para llegar hay que jugársela)
+        const boost = Object.values(useMapStore.getState().pois).some(
+          (p) =>
+            p.kind === "police" &&
+            haversine(p, poi) <= POLICE_INFLUENCE_RADIUS_M,
+        );
         set({
           businesses: [
             ...s.businesses,
-            { poiId: poi.id, name: poi.name, nameId: poi.nameId },
+            { poiId: poi.id, name: poi.name, nameId: poi.nameId, boost },
           ],
           launderAt: s.businesses.length === 0 ? Date.now() : s.launderAt,
         });
-        return done("Negocio comprado. Empieza a blanquear solo.");
+        return done(
+          boost
+            ? "Negocio comprado en zona policial: blanquea un 50 % más. Empieza solo."
+            : "Negocio comprado. Empieza a blanquear solo.",
+        );
       },
 
       upgrade: (kind) => {
@@ -355,7 +423,11 @@ export const useBaseStore = create<BaseState>()(
 
       establishContact: (poi) => {
         const s = get();
-        if (poi.kind !== "warehouse" && poi.kind !== "pharmacy")
+        if (
+          poi.kind !== "warehouse" &&
+          poi.kind !== "pharmacy" &&
+          poi.kind !== "supermarket"
+        )
           return fail("Ahí no hay nadie que te suministre.");
         if (s.suppliers[poi.id]) return fail("Ya es tu proveedor.");
         const pos = usePlayerStore.getState().position;
@@ -442,6 +514,30 @@ export const useBaseStore = create<BaseState>()(
         );
       },
 
+      bribePolice: () => {
+        const inv = useInventoryStore.getState();
+        if (inv.heat <= 0) return fail("La policía no te busca.");
+        if (inv.dirtyCash < BRIBE_COST)
+          return fail(`El soborno cuesta ${money(BRIBE_COST, "dirty")}.`);
+        useInventoryStore.setState({
+          heat: 0,
+          dirtyCash: inv.dirtyCash - BRIBE_COST,
+        });
+        return done(
+          `Un sobre bien repartido y la poli mira a otro lado (-${money(BRIBE_COST, "dirty")}).`,
+        );
+      },
+
+      claimSalary: () => {
+        const s = get();
+        const r = claimSalary(s.salaryAt, Date.now());
+        if (r.pays < 1) return fail("Todavía no toca cobrar.");
+        const inv = useInventoryStore.getState();
+        useInventoryStore.setState({ cleanCash: inv.cleanCash + r.cash });
+        set({ salaryAt: r.paidAt });
+        return done(`Cobras tu empleo de fachada: +${money(r.cash, "clean")}.`);
+      },
+
       claimAdReward: () => {
         const inv = useInventoryStore.getState();
         const now = Date.now();
@@ -500,8 +596,24 @@ export const useBaseStore = create<BaseState>()(
           pending(s.suppliers, s.carriers);
         const now = Date.now();
         const cash = supplierCash(supplier.poi.kind);
+        // En el tutorial, hasta el primer pedido, solo se pide lo que pide el paso
+        const tut = useTutorialStore.getState();
+        if (!tut.done && tut.step < 3 && item !== "fertilizante")
+          return fail(
+            "Para empezar, pide Fertilizante: es lo que cocina la Hierba.",
+          );
+        // En persona (junto a una farmacia o supermercado) sale más barato, con tope diario
+        const here = usePlayerStore.getState().position;
+        const inPerson =
+          cash === "clean" &&
+          !!here &&
+          haversine(here, supplier.poi) <= INTERACTION_RADIUS_M &&
+          inPersonLeft(s.inPerson, now) > 0;
         const wallet = cash === "clean" ? inv.cleanCash : inv.dirtyCash;
-        const plan = planOrder(supplier, item, qty, free, wallet, now);
+        const plan = planOrder(supplier, item, qty, free, wallet, now, {
+          seq: s.ordersPlaced + 1,
+          priceFactor: inPerson ? 1 - IN_PERSON_DISCOUNT : 1,
+        });
         if (!plan.ok) return fail(plan.reason);
         useInventoryStore.setState(
           cash === "clean"
@@ -513,9 +625,16 @@ export const useBaseStore = create<BaseState>()(
             ...s.suppliers,
             [poiId]: { ...supplier, order: plan.order },
           },
+          ordersPlaced: s.ordersPlaced + 1,
+          inPerson: inPerson
+            ? {
+                day: dayKey(now),
+                n: (s.inPerson?.day === dayKey(now) ? s.inPerson.n : 0) + 1,
+              }
+            : s.inPerson,
         });
         return done(
-          `Pedido: ${plan.qty} × ${ITEMS[item].label} por ${money(plan.cost, cash)}. Lo preparan y un transportista lo recoge.`,
+          `Pedido: ${plan.qty} × ${ITEMS[item].label} por ${money(plan.cost, cash)}${inPerson ? " (descuento en persona)" : ""}. Lo preparan y un transportista lo recoge.`,
         );
       },
 
@@ -626,6 +745,7 @@ export const useBaseStore = create<BaseState>()(
           cleanCash: inv.cleanCash,
           dealersAt: s.dealersAt,
           launderAt: s.launderAt,
+          launderFreeUntil: s.launderFreeUntil,
         };
         const after = syncIdle(before, Date.now());
         reportDealers(after.events);

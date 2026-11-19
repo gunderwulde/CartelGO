@@ -94,13 +94,23 @@
     "primaCoste": 200,
     "primaFiabilidad": 15
   },
+  "ventaManual": {
+    "_ayuda": "Vender a mano en parques y bares, sacando del almacén del HQ. parteQueCobras: 1 = precio completo (los camellos cobran menos). calorPorUnidad: sube el Heat por cada unidad vendida; unidadesPorToque: lo que vende cada botón.",
+    "parteQueCobras": 1,
+    "calorPorUnidad": 0.3,
+    "unidadesPorToque": 10
+  },
   "negocios": {
     "costes": [200, 700, 1500, 3000, 5500],
     "multiplicadorMasAlla": 1.8,
     "_ayudaCostes": "Dinero Sucio que cuesta el 1.º, 2.º, 3.º... negocio tapadera.",
     "segundosPorTick": 10,
     "sucioPorTick": 3,
-    "rendimientoLimpio": 0.8
+    "rendimientoLimpio": 0.8,
+    "facturaLimpioPorMinuto": 2,
+    "bonusZonaPolicial": 1.5,
+    "blanqueoSinComisionHoras": 2,
+    "_ayudaNuevos": "facturaLimpioPorMinuto: limpio que factura cada negocio por sí mismo. bonusZonaPolicial: multiplica lo que blanquea un negocio dentro del radio de una comisaría. blanqueoSinComisionHoras: horas iniciales de partida con rendimiento 100 %."
   },
   "suministro": {
     "proveedores": [
@@ -140,7 +150,18 @@
     ],
     "costeContratarTransportista": 200,
     "rendimientoEnsuciar": 0.5,
-    "importesEnsuciar": [50, 200]
+    "importesEnsuciar": [50, 200],
+    "arranque": {
+      "_ayuda": "Los cuatro primeros pedidos de la partida van más rápido para que el jugador nuevo no espere. El primero usa tiempos fijos; el 2.º, 3.º y 4.º, esta parte del tiempo normal; del 5.º en adelante, el normal.",
+      "primerPedidoPreparaSegundos": 15,
+      "primerPedidoViajeSegundos": 30,
+      "factoresSiguientes": [0.25, 0.5, 0.75]
+    },
+    "enPersona": {
+      "_ayuda": "Pedir estando junto a una farmacia o supermercado cuesta menos, hasta un máximo de pedidos al día.",
+      "descuento": 0.25,
+      "pedidosPorDia": 3
+    }
   },
   "calor": {
     "maximo": 100,
@@ -148,7 +169,8 @@
     "bajadaPorSegundo": 0.5,
     "trasRedada": 30,
     "parteDelAlmacenConfiscada": 0.3,
-    "radioZonaPoliciaMetros": 150
+    "radioZonaPoliciaMetros": 150,
+    "sobornoSucio": 150
   },
   "favores": {
     "iniciales": 5,
@@ -161,7 +183,7 @@
     "recompensaSucio": 100,
     "duracionSegundos": 20,
     "esperaMinutos": 5,
-    "favoresPorAnuncio": 1,
+    "favoresPorAnuncio": 2,
     "esperaFavorMinutos": 1
   },
   "offline": {
@@ -172,5 +194,11 @@
     "velocidadReanudarKmh": 20,
     "radioInteraccionMetros": 1500,
     "_ayudaRadio": "TEMPORAL para pruebas (1500). Valor de diseño: 50."
+  },
+  "empleo": {
+    "_ayuda": "Empleo de fachada: paga Dinero Limpio cada cierto tiempo, acumulable hasta un máximo de pagos.",
+    "pagoLimpio": 100,
+    "minutosPorPago": 30,
+    "pagosMaximos": 4
   }
 }

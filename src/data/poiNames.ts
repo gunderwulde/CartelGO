@@ -8,7 +8,13 @@ import { hash32, VENUES, type NameId } from "./poiNameCode";
  * Para añadir un idioma: crear su Locale (listas + plantillas) y registrarlo en LOCALES.
  */
 type NameKind =
-  "warehouse" | "pharmacy" | "park" | "nightlife" | "police" | "cover";
+  | "warehouse"
+  | "pharmacy"
+  | "supermarket"
+  | "park"
+  | "nightlife"
+  | "police"
+  | "cover";
 type Gender = "m" | "f";
 type Word = readonly [string, Gender];
 type Adj = readonly [string, string];
@@ -317,6 +323,28 @@ const THEMES: Record<string, Theme> = {
       w("Esposa", "f"),
       w("Ley", "f"),
     ],
+  },
+  supermarket: {
+    types: [
+      w("Supermercado", "m"),
+      w("Súper", "m"),
+      w("Colmado", "m"),
+      w("Ultramarinos", "m"),
+      w("Autoservicio", "m"),
+    ],
+    nouns: [
+      w("Carrito", "m"),
+      w("Oferta", "f"),
+      w("Cola", "f"),
+      w("Pasillo", "m"),
+      w("Cesta", "f"),
+      w("Ticket", "m"),
+      w("Rebaja", "f"),
+    ],
+  },
+  "kind:supermarket": {
+    types: [w("Supermercado", "m"), w("Súper", "m"), w("Colmado", "m")],
+    nouns: [w("Carrito", "m"), w("Oferta", "f"), w("Cesta", "f")],
   },
   "kind:pharmacy": {
     types: [

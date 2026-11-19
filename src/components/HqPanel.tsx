@@ -22,6 +22,13 @@ import { usePlayerStore } from "../store/playerStore";
 import { batchDurationMs } from "../services/idleEngine";
 import { carried } from "../services/tradeEngine";
 import { useNow } from "../services/useIdle";
+import {
+  SALARY_MAX_PAYS,
+  SALARY_PAY,
+  SALARY_PERIOD_MS,
+  salaryPending,
+} from "../services/salary";
+import { BRIBE_COST } from "../services/favors";
 import { type Sfx } from "../services/sound";
 import { requestNotifyPermission } from "../services/notify";
 import { fmtTime } from "../services/fmt";
@@ -299,7 +306,10 @@ export default function HqPanel({
           hint="Ve en persona a un almacén o una farmacia y pulsa «Establecer contacto». Solo hace falta la primera vez."
           action="Ir al almacén o farmacia más cercano"
           onAction={() =>
-            onGo({ type: "poi", kinds: ["warehouse", "pharmacy"] })
+            onGo({
+              type: "poi",
+              kinds: ["warehouse", "pharmacy", "supermarket"],
+            })
           }
         />
       )}
@@ -342,6 +352,22 @@ export default function HqPanel({
         Los edificios no pueden superar el nivel del Cuartel General.
       </p>
 
+      <p className="text-sm font-black mt-4">Empleo de fachada</p>
+      <p className="text-xs font-bold">
+        Tu trabajo legal de tapadera. Paga {money(SALARY_PAY, "clean")} cada{" "}
+        {SALARY_PERIOD_MS / 60_000} min, acumulables hasta {SALARY_MAX_PAYS}{" "}
+        pagos, aunque la app esté cerrada.
+      </p>
+      <button
+        className={btn}
+        disabled={salaryPending(base.salaryAt, now) < 1}
+        onClick={() => report(base.claimSalary(), "level")}
+      >
+        {salaryPending(base.salaryAt, now) < 1
+          ? `Próximo pago en ${fmtTime(SALARY_PERIOD_MS - (now - base.salaryAt))}`
+          : `Cobrar ${money(salaryPending(base.salaryAt, now) * SALARY_PAY, "clean")}`}
+      </button>
+
       <p className="text-sm font-black mt-4">Favores ({base.favors})</p>
       <p className="text-xs font-bold">
         Sirven para saltarte esperas: pedidos, viajes y lotes (1 favor cada 5
@@ -362,6 +388,13 @@ export default function HqPanel({
         onClick={() => report(base.calmHeat(), "level")}
       >
         Despistar a la poli: Heat a 0 ({CALM_HEAT_COST} favores)
+      </button>
+      <button
+        className={`${btn} bg-white!`}
+        disabled={inv.heat <= 0}
+        onClick={() => report(base.bribePolice(), "level")}
+      >
+        Sobornar a la poli: Heat a 0 ({money(BRIBE_COST, "dirty")})
       </button>
 
       <p className="text-sm font-black mt-4">Ensuciar dinero</p>

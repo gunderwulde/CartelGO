@@ -2,6 +2,10 @@ import type { Cash } from "./money";
 import {
   CARRIER_LEVELS,
   DIRTY_EXCHANGE_YIELD,
+  IN_PERSON_ORDERS_PER_DAY,
+  RAMP_FACTORS,
+  RAMP_FIRST_PREP_MS,
+  RAMP_FIRST_TRIP_MS,
   REMOTE_UPGRADE_FACTOR,
   SUPPLIER_LEVELS,
   SUPPLIER_UPGRADE_COSTS,
@@ -32,6 +36,8 @@ export interface Order {
   qty: number;
   /** Instante en que la mercancía está preparada */
   readyAt: number;
+  /** Nº de pedido de la partida (1, 2, 3...): los primeros van más rápido. Ausente en pedidos antiguos */
+  seq?: number;
 }
 
 export interface Supplier {
@@ -84,9 +90,38 @@ export type OrderPlan =
   | { ok: true; qty: number; cost: number; order: Order }
   | { ok: false; reason: string };
 
-/** Con qué dinero se paga en cada tipo de punto: la farmacia es legal (limpio) y el almacén clandestino, no (sucio). */
+/** Con qué dinero se paga en cada tipo de punto: farmacia y supermercado son legales (limpio) y el almacén clandestino, no (sucio). */
 export const supplierCash = (kind: PoiKind): Cash =>
-  kind === "pharmacy" ? "clean" : "dirty";
+  kind === "pharmacy" || kind === "supermarket" ? "clean" : "dirty";
+
+/**
+ * Arranque suave: tiempo de un pedido según su número. El 1.º tarda un tiempo fijo corto, el 2.º-4.º una fracción del normal
+ * y del 5.º en adelante el normal. Sin número (pedidos antiguos) se usa el normal.
+ */
+export function rampMs(
+  seq: number | undefined,
+  normalMs: number,
+  firstMs: number,
+): number {
+  if (!seq) return normalMs;
+  if (seq === 1) return Math.min(firstMs, normalMs);
+  const factor = RAMP_FACTORS[seq - 2];
+  return factor === undefined ? normalMs : Math.round(normalMs * factor);
+}
+
+/** Pedidos «en persona» (con descuento) que se han hecho hoy: se reinicia cada día natural */
+export interface InPersonCount {
+  day: string;
+  n: number;
+}
+export const dayKey = (now: number): string => new Date(now).toDateString();
+export const inPersonLeft = (
+  count: InPersonCount | undefined,
+  now: number,
+): number =>
+  count && count.day === dayKey(now)
+    ? Math.max(0, IN_PERSON_ORDERS_PER_DAY - count.n)
+    : IN_PERSON_ORDERS_PER_DAY;
 
 /** Qué se puede pedir ahora: cantidad (limitada por nivel, espacio y dinero) y coste. */
 export function planOrder(
@@ -96,6 +131,12 @@ export function planOrder(
   freeSpace: number,
   cash: number,
   now: number,
+  opts: {
+    /** Nº de pedido de la partida (para el arranque suave) */
+    seq?: number;
+    /** Multiplicador del precio (p. ej. 0,75 con el descuento en persona) */
+    priceFactor?: number;
+  } = {},
 ): OrderPlan {
   if (!offersFor(supplier.poi.kind).buy.includes(item))
     return { ok: false, reason: "Ese proveedor no vende eso." };
@@ -104,7 +145,8 @@ export function planOrder(
       ok: false,
       reason: "Ya tienes un pedido en marcha con este proveedor.",
     };
-  const unit = unitPrice(supplier.poi.kind, item, new Date(now));
+  const unit =
+    unitPrice(supplier.poi.kind, item, new Date(now)) * (opts.priceFactor ?? 1);
   const info = supplierInfo(supplier.level);
   const qty = Math.min(
     requested,
@@ -123,8 +165,13 @@ export function planOrder(
   return {
     ok: true,
     qty,
-    cost: qty * unit,
-    order: { item, qty, readyAt: now + info.prepMs },
+    cost: Math.round(qty * unit),
+    order: {
+      item,
+      qty,
+      readyAt: now + rampMs(opts.seq, info.prepMs, RAMP_FIRST_PREP_MS),
+      seq: opts.seq,
+    },
   };
 }
 
@@ -215,7 +262,9 @@ export function advanceSupply(
         supplierId: next.supplierId,
         item: order.item,
         qty: take,
-        arriveAt: next.time + carrierInfo(c.level).tripMs,
+        arriveAt:
+          next.time +
+          rampMs(order.seq, carrierInfo(c.level).tripMs, RAMP_FIRST_TRIP_MS),
       };
       suppliers[next.supplierId] = {
         ...s,

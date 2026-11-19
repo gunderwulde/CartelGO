@@ -8,7 +8,9 @@ import {
   DEALER_THEFT_BASE,
   DEALER_THEFT_SHARE,
   DEALER_INTERVAL_MS,
+  BUSINESS_BILL_PER_MIN,
   LAUNDER_DIRTY_PER_TICK,
+  POLICE_ZONE_BONUS,
   LAUNDER_TICK_MS,
   LAUNDER_YIELD,
   OFFLINE_CAP_MS,
@@ -85,6 +87,8 @@ export interface Business {
   poiId: string;
   name: string | null;
   nameId?: NameId;
+  /** Está dentro del radio de una comisaría: blanquea más (ver POLICE_ZONE_BONUS) */
+  boost?: boolean;
 }
 
 export interface IdleState {
@@ -99,6 +103,8 @@ export interface IdleState {
   /** Cursores: el progreso se calcula siempre contra Date.now(), no con timers (AGENTS §5) */
   dealersAt: number;
   launderAt: number;
+  /** Hasta cuándo el blanqueo no cobra comisión (primeras horas de partida) */
+  launderFreeUntil?: number;
 }
 
 export const batchDurationMs = (recipe: RecipeId, labLevel: number): number =>
@@ -217,15 +223,34 @@ function runLaundering<T extends IdleState>(s: T, now: number): T {
   const from = Math.max(s.launderAt, now - OFFLINE_CAP_MS);
   const ticks = Math.floor((now - from) / LAUNDER_TICK_MS);
   if (ticks < 1) return { ...s, launderAt: from };
-  const amount = Math.min(
-    s.dirtyCash,
-    ticks * LAUNDER_DIRTY_PER_TICK * s.businesses.length,
+  const to = from + ticks * LAUNDER_TICK_MS;
+  // Cada negocio dentro de una zona policial cuenta más
+  const weight = s.businesses.reduce(
+    (a, b) => a + (b.boost ? POLICE_ZONE_BONUS : 1),
+    0,
   );
+  const amount = Math.floor(
+    Math.min(s.dirtyCash, ticks * LAUNDER_DIRTY_PER_TICK * weight),
+  );
+  // Primeras horas de partida: sin comisión (rinde el 100 %)
+  const freeTicks = s.launderFreeUntil
+    ? Math.min(
+        ticks,
+        Math.max(0, Math.floor((s.launderFreeUntil - from) / LAUNDER_TICK_MS)),
+      )
+    : 0;
+  const freeAmount = (amount * freeTicks) / ticks;
+  const laundered = Math.floor(
+    freeAmount + (amount - freeAmount) * LAUNDER_YIELD,
+  );
+  // Facturación propia de los negocios: se calcula con el tiempo absoluto para no perder fracciones entre sincronizaciones
+  const perMs = (BUSINESS_BILL_PER_MIN * s.businesses.length) / 60_000;
+  const billed = Math.floor(to * perMs) - Math.floor(from * perMs);
   return {
     ...s,
     dirtyCash: s.dirtyCash - amount,
-    cleanCash: s.cleanCash + Math.floor(amount * LAUNDER_YIELD),
-    launderAt: from + ticks * LAUNDER_TICK_MS,
+    cleanCash: s.cleanCash + laundered + billed,
+    launderAt: to,
   };
 }
 
